@@ -37,6 +37,12 @@ Notes:
 - The clients deliberately don't perform fuzzy matching — this was moved into the processing layer to keep clients I/O-only. The processing step will implement fuzzy matching and candidate resolution.
  - The clients deliberately don't perform fuzzy matching — this was moved into the processing layer to keep clients I/O-only. The processing step will implement fuzzy matching and candidate resolution. However, parsing logic that flattens nested structures from Pure and OpenAlex has been ported into the clients to avoid duplication and to provide ready-to-consume dicts for processing.
 
+2025-11-19T00:30:00Z - OpenAlex title search optimization
+
+Summary:
+- Parallelized the detailed work fetch in `OpenAlexClient.get_works_by_title` using `asyncio.gather` to fetch multiple work details concurrently. This prevents slow serial fetches when the autocomplete returns multiple matches.
+- Added a unit test to ensure that one failing detail request doesn't break the entire operation (error-tolerant behaviour).
+
 2025-11-19T00:25:00Z - Pydantic v2 config migration
 
 Summary:
@@ -61,3 +67,32 @@ Notes:
 - `BaseClient` implements a `request` helper that raises `HTTPStatusError`; the retry predicate handles these errors and determines when to retry. We use `before_sleep_log` to tie `tenacity` logging into `loguru`.
 
 ---
+
+2025-11-19 - Started/Completed Step 4: Processing (initial core functions)
+
+Summary:
+- Added Polars-based processing modules in `src/syntheca/processing/`:
+	- `cleaning.py`: Implements `normalize_doi()` (lowercase, strip `https://doi.org/`, trim) and a light `clean_publications()` used in pipeline tests.
+	- `matching.py`: Implements `calculate_fuzzy_match()` using `Levenshtein.ratio` called via `pl.struct(...).map_elements(...)` to remain vectorized.
+	- `enrichment.py`: Implements `enrich_authors_with_faculties()` which loads `faculties.json` from `settings` and creates boolean faculty columns when affiliation names match.
+	- `merging.py`: Implements `merge_datasets()` which normalizes DOIs in both frames using `normalize_doi()` and joins on `_norm_doi`.
+
+Tests:
+- `tests/test_processing_cleaning.py` verifies DOI normalization and year parsing.
+- `tests/test_processing_matching.py` verifies fuzzy matching for exact and partial matches.
+- `tests/test_processing_enrichment.py` verifies faculty boolean columns are added from `faculties.json`.
+- `tests/test_processing_merging.py` verifies DOIs are normalized and used for the join.
+
+Notes:
+- `calculate_fuzzy_match` uses `Levenshtein.ratio` (dependency in `pyproject.toml`) and `map_elements` — this keeps the computation row-level while remaining expressional.
+- `enrich_authors_with_faculties` intentionally expects the column `affiliation_names_pure` and is defensive — it returns the original DataFrame if the column is missing.
+- This completes an initial surface area of Step 4; next we'll implement deeper matching / enrichment flows and robust deduplication.
+ - Implemented `resolve_missing_ids()` in `src/syntheca/processing/matching.py`. This async helper uses the `OpenAlexClient.get_works_by_title` API to fetch candidate matches and selects the best match using `Levenshtein.ratio`. It prefers results where the OpenAlex candidate lists UT as a corresponding institution by adding a small score boost. Successful matches populate the `id` and `doi` columns where missing.
+ - Implemented `deduplicate()` in `src/syntheca/processing/merging.py`. Strategy:
+	 - Normalize DOIs and drop duplicate DOI rows while preserving the first occurrence.
+	 - For rows without DOIs, deduplicate by a normalized title (lowercased and trimmed). This mirrors the notebook's dedup strategy and can be extended later.
+ - Added tests: `tests/test_processing_advanced.py` covers `resolve_missing_ids` (mocking OpenAlex results) and `deduplicate`.
+
+Notes:
+- `resolve_missing_ids` is conservative: only matches that exceed a default `threshold=0.9` are used. The function also provides a small boost for UT-affiliated OpenAlex works to help resolve ambiguous titles.
+- `deduplicate` is intentionally simple and returns a stable, deterministic subset. Later versions can implement more complex title-similarity or ID heuristics.

@@ -13,7 +13,9 @@ from typing import Literal, Self, TypeVar
 
 from dacite import Config, from_dict
 
-error_checking_config = Config(strict=True)  # Crash on undocumented fields, for development/testing
+error_checking_config = Config(
+    strict=True
+)  # Crash on undocumented fields, for development/testing
 
 production_config = Config(
     strict=False,  # Don't crash on undocumented fields (crucial based on your report)
@@ -355,7 +357,9 @@ class Location:
     source: DehydratedSource | None
     version: Literal["publishedVersion", "acceptedVersion", "submittedVersion"] | None
 
-    raw_source_name: str | None  # undocumented field!! see https://openalex.org/W1980689546
+    raw_source_name: (
+        str | None
+    )  # undocumented field!! see https://openalex.org/W1980689546
     id: (
         str | None
     )  # undocumented field!! e.g. 'doi:10.1115/pvp2009-77064', from same example as above

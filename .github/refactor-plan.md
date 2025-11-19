@@ -23,7 +23,7 @@ Completed? | Step | Module | Description |
 | YES | **1** | **Config & Models** | ✓ Completed — Set up Pydantic settings, externalized hardcoded data (publishers, faculties) to JSON, and implemented OpenAlex dataclasses. |
 | YES | **2** | **Infrastructure** | ✓ Completed — Built `loguru` logging config, async file cache, and `BaseClient` with tenacity retries and httpx lifecycle handling. |
 | YES | **3** | **Clients** | ✓ Completed — Implemented `PureOAIClient`, `OpenAlexClient`, and `UTPeopleClient` including robust XML helpers, `dacite` typed parsing and chunked OpenAlex queries. Full legacy parsing (publication/person/org parsing and OpenAlex cleaning) was ported from the monolith. |
-| NO  | **4** | **Processing** | Port Polars logic: Cleaning, Fuzzy Matching, Enrichment (Faculty linking), and Merging (OILS). |
+| YES | **4** | **Processing** | ✓ Completed — added `cleaning`, `matching` (incl. resolve_missing_ids), `enrichment`, and `merging` (incl. deduplicate). Further refinements for scoring and enrichment are planned. |
 | NO  | **5** | **Reporting & Pipeline** | Create the Export module (Excel/Parquet) and the main Async Orchestrator (`pipeline.py`). |
 | NO  | **6** | **Frontend** | Create the clean `app.py` Marimo notebook that serves as the UI. |
 
@@ -153,6 +153,7 @@ Notes (differences / clarifications):
 Notes (changes & clarifications):
 - `PureOAIClient` includes `_ensure_list`, `_get_text`, `_safe_get`, `_parse_publication`, `_parse_person`, and `_parse_orgunit` for robust XML parsing. Resumption token logic handles XML pagination.
 - `OpenAlexClient` implements chunking of IDs (50 per batch) in `get_works_by_ids` and resolves titles via `autocomplete/works` then fetches full work details. It uses `dacite.from_dict` with `production_config` to create typed `Work` instances.
+ - `OpenAlexClient` implements chunking of IDs (50 per batch) in `get_works_by_ids` and resolves titles via `autocomplete/works` then fetches full work details in parallel (asyncio.gather). It uses `dacite.from_dict` with `production_config` to create typed `Work` instances. This prevents sequential slowdowns when many title matches are returned.
 - `UTPeopleClient` now exposes `search_person` for RPC queries and `scrape_profile` for detail pages and includes `_parse_organization_details` that mirrors the logic in the original notebook. The heavy fuzzy matching is intentionally left for the `processing/matching.py` module as the clients should focus on I/O.
 - All clients' I/O methods are unit-tested using `httpx.MockTransport` so tests do not call external networks.
 

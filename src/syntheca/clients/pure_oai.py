@@ -90,7 +90,13 @@ class PureOAIClient(BaseClient):
             ],
             "publisher_name": self._get_text(
                 self._safe_get(
-                    pub, ["cerif:Publishers", "cerif:Publisher", "cerif:OrgUnit", "cerif:Name"]
+                    pub,
+                    [
+                        "cerif:Publishers",
+                        "cerif:Publisher",
+                        "cerif:OrgUnit",
+                        "cerif:Name",
+                    ],
                 )
             ),
         }
@@ -160,7 +166,7 @@ class PureOAIClient(BaseClient):
 
         async def get_collection_data(collection: str):
             url = f"{self.BASEURL}?verb=ListRecords&metadataPrefix={self.SCHEMA}&set={collection}"
-            resume_url = url.split("&metadataPrefix")[0]
+            resume_url = url.split("&metadataPrefix", maxsplit=1)[0]
 
             col_records: list[dict] = []
             while url:

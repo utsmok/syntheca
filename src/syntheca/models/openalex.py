@@ -11,8 +11,6 @@ from typing import Literal, Self, TypeVar
 
 from dacite import Config, from_dict
 
-error_checking_config = Config(strict=True)
-
 production_config = Config(
     strict=False,
     check_types=True,

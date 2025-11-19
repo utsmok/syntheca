@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterable
 from urllib.parse import quote
 
@@ -27,7 +28,10 @@ class OpenAlexClient(BaseClient):
         results: list[Work] = []
         for batch in self._chunks(ids, self.PER_PAGE):
             filter_value = "|".join([str(x).replace("doi:", "") for x in batch])
-            params = {"filter": f"{id_type_param}:{filter_value}", "per-page": self.PER_PAGE}
+            params = {
+                "filter": f"{id_type_param}:{filter_value}",
+                "per-page": self.PER_PAGE,
+            }
             url = f"{self.BASE}/works"
             resp = await self.request("GET", url, params=params)
             data = resp.json()
@@ -45,15 +49,21 @@ class OpenAlexClient(BaseClient):
         resp = await self.request("GET", url)
         data = resp.json()
         results = []
-        for item in data.get("results", []):
-            # The autocomplete return format includes display_name & id; return minimal Work-like object if possible
-            try:
-                # hit OpenAlex works endpoint for details by id
-                work_resp = await self.request("GET", f"{self.BASE}/works/{quote(item.get('id'))}")
-                work_data = work_resp.json()
-                results.append(from_dict(data_class=Work, data=work_data, config=production_config))
-            except Exception:
-                continue
+        # fetch details in parallel to speed up title lookups
+        ids = [item.get("id") for item in data.get("results", []) if item.get("id")]
+        coros = [self.request("GET", f"{self.BASE}/works/{quote(i)}") for i in ids]
+        if coros:
+            responses = await asyncio.gather(*coros, return_exceptions=True)
+            for resp in responses:
+                if not resp or isinstance(resp, Exception):
+                    continue
+                try:
+                    work_data = resp.json()
+                    results.append(
+                        from_dict(data_class=Work, data=work_data, config=production_config)
+                    )
+                except Exception:
+                    continue
         return results
 
     def clean_openalex_raw_data(self, works: list[dict]) -> list[dict]:

@@ -1,6 +1,6 @@
+from httpx import MockTransport, Response
 import pytest
 import xmltodict
-from httpx import MockTransport, Response
 
 from syntheca.clients.pure_oai import PureOAIClient
 

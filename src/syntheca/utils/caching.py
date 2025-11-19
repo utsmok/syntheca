@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import inspect
+import pathlib
 import pickle
 from hashlib import blake2b
 
@@ -33,10 +34,10 @@ def file_cache(prefix: str | None = None):
             key = _make_key(func.__qualname__, args, kwargs)
             filename = cache_dir / f"{prefix or func.__name__}_{key}.pkl"
             if filename.exists():
-                with open(filename, "rb") as fh:
+                with pathlib.Path(filename).open("rb") as fh:
                     return pickle.load(fh)
             result = func(*args, **kwargs)
-            with open(filename, "wb") as fh:
+            with pathlib.Path(filename).open("wb") as fh:
                 pickle.dump(result, fh)
             return result
 
@@ -45,18 +46,17 @@ def file_cache(prefix: str | None = None):
             key = _make_key(func.__qualname__, args, kwargs)
             filename = cache_dir / f"{prefix or func.__name__}_{key}.pkl"
             if filename.exists():
-                with open(filename, "rb") as fh:
+                with pathlib.Path(filename).open("rb") as fh:
                     return pickle.load(fh)
             result = await func(*args, **kwargs)
             # Ensure parent exists
             filename.parent.mkdir(parents=True, exist_ok=True)
-            with open(filename, "wb") as fh:
+            with pathlib.Path(filename).open("wb") as fh:
                 pickle.dump(result, fh)
             return result
 
         if inspect.iscoroutinefunction(func):
             return _async_wrapper
-        else:
-            return _sync_wrapper
+        return _sync_wrapper
 
     return decorator

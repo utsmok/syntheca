@@ -1,5 +1,5 @@
-import pytest
 from httpx import MockTransport, Response
+import pytest
 
 from syntheca.clients.openalex import OpenAlexClient
 
@@ -8,7 +8,11 @@ from syntheca.clients.openalex import OpenAlexClient
 async def test_get_works_by_ids_parses(monkeypatch):
     sample = {
         "results": [
-            {"id": "https://openalex.org/W1", "display_name": "Test Work", "doi": "10.123/test"}
+            {
+                "id": "https://openalex.org/W1",
+                "display_name": "Test Work",
+                "doi": "10.123/test",
+            }
         ]
     }
 
@@ -27,13 +31,22 @@ async def test_get_works_by_ids_parses(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_works_by_title(monkeypatch):
     # Autocomplete returns a list with id; request for works details returns the work JSON
-    autocomplete = {"results": [{"id": "https://openalex.org/W1", "display_name": "Test Work"}]}
-    work_json = {"id": "https://openalex.org/W1", "display_name": "Test Work", "doi": "10.123/test"}
+    autocomplete = {
+        "results": [{"id": "https://openalex.org/W1", "display_name": "Test Work"}]
+    }
+    work_json = {
+        "id": "https://openalex.org/W1",
+        "display_name": "Test Work",
+        "doi": "10.123/test",
+    }
 
     async def handler(request):
         url = str(request.url)
         if "/autocomplete/works" in url:
             return Response(200, json=autocomplete)
+        # simulate a failing work detail for one of the results to ensure error-tolerance
+        if "/works/https%3A//openalex.org/W1" in url:
+            return Response(500)
         return Response(200, json=work_json)
 
     transport = MockTransport(handler)
@@ -41,6 +54,9 @@ async def test_get_works_by_title(monkeypatch):
     client.client = client.client.__class__(transport=transport)
 
     results = await client.get_works_by_title("Some title")
+    assert isinstance(results, list)
+    # since one of the detail calls failed, results may be empty or only include the successful fetch
+    # we assert the code handles exceptions and returns a list
     assert isinstance(results, list)
 
 

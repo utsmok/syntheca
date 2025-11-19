@@ -1,5 +1,5 @@
-import pytest
 from httpx import MockTransport, Response
+import pytest
 
 from syntheca.clients.ut_people import UTPeopleClient
 
@@ -11,7 +11,9 @@ async def test_search_person_parse(monkeypatch):
     html += '<div class="ut-person-tile__profilelink"><a href="/profile/1">Profile</a></div>'
     html += '<div class="ut-person-tile__mail"><span class="text">john.doe@example.com</span></div>'
     html += '<div class="ut-person-tile__roles">Researcher</div>'
-    html += '<div class="ut-person-tile__orgs"><div>Faculty of Something</div></div></div>'
+    html += (
+        '<div class="ut-person-tile__orgs"><div>Faculty of Something</div></div></div>'
+    )
 
     rpc_json = {"result": {"resultshtml": html}}
 
