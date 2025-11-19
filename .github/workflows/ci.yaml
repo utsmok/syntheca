@@ -17,11 +17,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
-      - name: fix with Ruff
-        run: uv run ruff fix src/
+      - name: Check & fix with Ruff
+        run: uv run ruff check --fix src/
 
-      - name: Format & check with Ruff
-        run: uv run ruff format --check src/
+      - name: Format with Ruff
+        run: uv run ruff format src/
 
       - name: Type check with Ty
         run: uv run ty check
