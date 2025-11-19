@@ -1,0 +1,15 @@
+{
+  "mapping": {
+    "Faculty of Science and Technology": "tnw",
+    "Faculty of Engineering Technology": "et",
+    "Faculty of Electrical Engineering, Mathematics and Computer Science": "eemcs",
+    "Faculty of Behavioural, Management and Social Sciences": "bms",
+    "Faculty of Geo-Information Science and Earth Observation": "itc",
+    "TechMed Centre": "techmed",
+    "Digital Society Institute": "dsi",
+    "MESA+ Institute": "mesa"
+  },
+  "short_names": ["tnw", "et", "eemcs", "bms", "itc", "techmed", "dsi", "mesa"],
+  "ut_uuid": "491145c6-1c9b-4338-aedd-98315c166d7e",
+  "openalex_ut_id": "https://openalex.org/I94624287"
+}

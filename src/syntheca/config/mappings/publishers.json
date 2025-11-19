@@ -1,0 +1,55 @@
+{
+  "Elsevier": [
+    "Elsevier B.V.",
+    "Elsevier Ltd",
+    "Elsevier Inc.",
+    "Elsevier",
+    "Elsevier Ireland Ltd",
+    "Elsevier Doyma",
+    "Elsevier Masson s.r.l.",
+    "Elsevier Editora Ltda",
+    "Elsevier (Singapore) Pte Ltd",
+    "Elsevier USA",
+    "Elsevier Bedrijfsinformatie"
+  ],
+  "Springer": [
+    "Springer Science and Business Media B.V.",
+    "Springer",
+    "SpringerOpen",
+    "Springer Science and Business Media, LLC",
+    "Springer Science + Business Media",
+    "Springer Spektrum"
+  ],
+  "Wiley": ["Wiley-Hindawi", "Wiley-VCH Verlag", "Wiley", "Wiley-Blackwell"],
+  "Taylor & Francis": [
+    "CRC Press (Taylor & Francis)",
+    "Taylor and Francis Inc.",
+    "Taylor and Francis A.S.",
+    "Taylor & Francis Group LLC",
+    "Taylor & Francis"
+  ],
+  "Nature": ["Nature Publishing Group", "Nature Partner Journals", "Nature Research"],
+  "IEEE": ["IEEE Advancing Technology for Humanity", "IEEE"],
+  "UTwente": [
+    "University of Twente/Julius-Maximilians-Universität Würzburg",
+    "University of Twente, Faculty of Geo-Information Science and Earth Observation (ITC)",
+    "University of Twente"
+  ],
+  "ACM": [
+    "Association for Computing Machinery",
+    "Association for Computing Machinery (ACM)",
+    "ACM Publishing",
+    "ACM SIGIR Forum",
+    "ACM SigCHI",
+    "ACM SIGCOMM",
+    "ACM Press"
+  ],
+  "Frontiers": ["Frontiers Media SA", "Frontiers Research Foundation"],
+  "Wolters Kluwer": [
+    "Wolters Kluwer Medknow Publications",
+    "Wolters Kluwer Health Inc",
+    "Wolters Kluwer Health"
+  ],
+  "Sage": ["Sage Periodicals Press", "Sage"],
+  "Inderscience": ["Inderscience", "Inderscience Publishers"]
+}

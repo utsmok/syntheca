@@ -18,14 +18,14 @@ These files can be found in the root of the repository, and are used as referenc
 
 ## Summary of Steps
 
-| Step | Module | Description |
-| :--- | :--- | :--- |
-| **1** | **Config & Models** | Set up Pydantic settings, externalize hardcoded data (publishers, faculties) to JSON, and implement OpenAlex data models. |
-| **2** | **Infrastructure** | Build the foundation: Logging (`loguru`), Caching (`utils`), and a robust `BaseAsyncClient` with retries (`tenacity`). |
-| **3** | **Clients** | Implement specific API clients: `PureOAIClient` (XML), `OpenAlexClient` (Typed), and `UTPeopleClient` (Scraper). |
-| **4** | **Processing** | Port Polars logic: Cleaning, Fuzzy Matching, Enrichment (Faculty linking), and Merging (OILS). |
-| **5** | **Reporting & Pipeline** | Create the Export module (Excel/Parquet) and the main Async Orchestrator (`pipeline.py`). |
-| **6** | **Frontend** | Create the clean `app.py` Marimo notebook that serves as the UI. |
+Completed? | Step | Module | Description |
+| :--- | :--- | :--- | :--- |
+| YES | **1** | **Config & Models** | ✓ Completed — Set up Pydantic settings, externalized hardcoded data (publishers, faculties) to JSON, and implemented OpenAlex dataclasses. |
+| YES | **2** | **Infrastructure** | ✓ Completed — Built `loguru` logging config, async file cache, and `BaseClient` with tenacity retries and httpx lifecycle handling. |
+| YES | **3** | **Clients** | ✓ Completed — Implemented `PureOAIClient`, `OpenAlexClient`, and `UTPeopleClient` including robust XML helpers, `dacite` typed parsing and chunked OpenAlex queries. Full legacy parsing (publication/person/org parsing and OpenAlex cleaning) was ported from the monolith. |
+| NO  | **4** | **Processing** | Port Polars logic: Cleaning, Fuzzy Matching, Enrichment (Faculty linking), and Merging (OILS). |
+| NO  | **5** | **Reporting & Pipeline** | Create the Export module (Excel/Parquet) and the main Async Orchestrator (`pipeline.py`). |
+| NO  | **6** | **Frontend** | Create the clean `app.py` Marimo notebook that serves as the UI. |
 
 ---
 
@@ -82,7 +82,11 @@ Note 1: most code should be taken from `current_marimo_monolith.py` with modific
 Note 2: Ensure to always add correct type hints and docstrings to all functions and classes.
 Note 3: Add basic unit tests for each module in `tests/` during implementation. This is not detailed here but is expected as part of the development workflow. We use `pytest` for testing, with `pytest-asyncio` for async tests. Make use of fixtures and mocks as needed, and follow best practices for test organization and implementation.Run the tests using `uv`, e.g., `uv run pytest`.
 
-### Step 1: Configuration & Data Models
+---
+
+## Completed steps
+
+### Step 1: Configuration & Data Models [Completed]
 **Goal**: Remove hardcoded data and establish type safety.
 
 1.  **`src/syntheca/config/mappings/`**:
@@ -96,6 +100,15 @@ Note 3: Add basic unit tests for each module in `tests/` during implementation. 
 3.  **`src/syntheca/models/openalex.py`**:
     *   **Action**: Copy the provided Dataclasses code from `openalex_data_models.py`.
     *   **Modification**: ensure a `dacite.Config` object at the module level with `strict=False`, `check_types=True`, and `cast=[int, float]` to handle API inconsistencies.
+
+Notes (differences / clarifications):
+- `publishers.json`, `faculties.json`, and `corrections.json` were created with values taken from `current_marimo_monolith.py` rather than being fully comprehensive; these files can be expanded in Step 4 while porting `clean_publications` and `add_missing_affils`.
+- Tests for settings & models were added. The models `openalex.py` copy is comprehensive (closely mirrors `openalex_data_models.py`) so downstream typed clients can be implemented in Step 3.
+- `faculties.json` includes `ut_uuid` and `openalex_ut_id` so that processing functions can reference them without hardcoding.
+
+---
+
+## Steps to be implemented
 
 ### Step 2: Infrastructure (Utils & Base Client)
 **Goal**: Reusable plumbing for network requests and logging.
@@ -111,6 +124,12 @@ Note 3: Add basic unit tests for each module in `tests/` during implementation. 
         *   Implement automatic retries using `tenacity` (handle 429s and 5xx errors).
         *   Integrate the caching logic.
         *   Implement `__aenter__` and `__aexit__` for context management.
+
+    Notes (changes & clarifications):
+    - `src/syntheca/utils/logging.py` configures `loguru` to log to stderr (INFO) and to a rotating logfile at `settings.log_file` (DEBUG). This replicates the intended persistent logging behavior and uses `settings` for the log path.
+    - `src/syntheca/utils/caching.py` implements `@file_cache` that supports both sync and async functions. Async wrapper awaits the decorated coroutine and writes/reads pickled results to/from disk. The cache key is a blake2b hash of the function qualname and repr(args/kwargs).
+    - `src/syntheca/clients/base.py` provides `BaseClient` with `httpx.AsyncClient`, a `request()` helper decorated with `tenacity.retry` to retry on `httpx.RequestError` and HTTP 429/5xx. `tenacity.before_sleep_log` is used with `loguru` to surface retry messages. `__aexit__` ensures the underlying `AsyncClient` is closed to avoid leaking resources.
+    - Tests added: `tests/test_utils_caching.py` (async+sync caching) and `tests/test_clients_base.py` (context manager + retry on 429) to validate the implementation.
 
 ### Step 3: API Clients
 **Goal**: Implement specific logic for each data source.
@@ -130,6 +149,12 @@ Note 3: Add basic unit tests for each module in `tests/` during implementation. 
     *   **Method**: `search_person(name: str)`.
     *   **Method**: `scrape_profile(url: str)`.
     *   **Logic**: Use `selectolax` for HTML parsing (CSS selectors). Port the regex logic for parsing "Faculty (Abbr)".
+
+Notes (changes & clarifications):
+- `PureOAIClient` includes `_ensure_list`, `_get_text`, `_safe_get`, `_parse_publication`, `_parse_person`, and `_parse_orgunit` for robust XML parsing. Resumption token logic handles XML pagination.
+- `OpenAlexClient` implements chunking of IDs (50 per batch) in `get_works_by_ids` and resolves titles via `autocomplete/works` then fetches full work details. It uses `dacite.from_dict` with `production_config` to create typed `Work` instances.
+- `UTPeopleClient` now exposes `search_person` for RPC queries and `scrape_profile` for detail pages and includes `_parse_organization_details` that mirrors the logic in the original notebook. The heavy fuzzy matching is intentionally left for the `processing/matching.py` module as the clients should focus on I/O.
+- All clients' I/O methods are unit-tested using `httpx.MockTransport` so tests do not call external networks.
 
 ### Step 4: Processing Logic (Polars)
 **Goal**: Pure functions that take DataFrames and return DataFrames.

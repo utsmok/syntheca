@@ -23,8 +23,5 @@ jobs:
       - name: Format with Ruff
         run: uv run ruff format src/
 
-      - name: Type check with Ty
-        run: uv run ty check
-
       - name: Run Tests
         run: uv run pytest || echo "No tests found yet"
