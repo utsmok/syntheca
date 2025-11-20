@@ -17,14 +17,14 @@ These files can be found in the root of the repository, and are used as referenc
 ---
 
 ## Summary of Steps
-
 Completed? | Step | Module | Description |
 | :--- | :--- | :--- | :--- |
 | YES | **1** | **Config & Models** | ✓ Completed — Set up Pydantic settings, externalized hardcoded data (publishers, faculties) to JSON, and implemented OpenAlex dataclasses. |
 | YES | **2** | **Infrastructure** | ✓ Completed — Built `loguru` logging config, async file cache, and `BaseClient` with tenacity retries and httpx lifecycle handling. |
-| YES | **3** | **Clients** | ✓ Completed — Implemented `PureOAIClient`, `OpenAlexClient`, and `UTPeopleClient` including robust XML helpers, `dacite` typed parsing and chunked OpenAlex queries. Full legacy parsing (publication/person/org parsing and OpenAlex cleaning) was ported from the monolith. |
-| YES | **4** | **Processing** | ✓ Completed — added `cleaning`, `matching` (incl. resolve_missing_ids), `enrichment`, and `merging` (incl. deduplicate). Further refinements for scoring and enrichment are planned. |
-| YES | **5** | **Reporting & Pipeline** | ✓ Completed — Added `reporting/export.py` and a basic async `Pipeline` orchestrator. The pipeline supports DataFrame inputs for testability and optional client-based ingestion (Pure OAI, OpenAlex, UT People). |
+| YES | **3** | **Clients** | ✓ Completed — Implemented `PureOAIClient`, `OpenAlexClient`, and `UTPeopleClient` including robust XML helpers, `dacite` typed parsing and chunked OpenAlex queries. |
+| YES | **4** | **Processing (Core)** | ✓ Completed — added basic `cleaning`, `matching`, `enrichment` (string-based), and `merging` logic. |
+| NO  | **5a** | **Pipeline (Basic)** | ✓ Completed — Basic orchestrator structure implemented. |
+| NO  | **5b** | **Enrichment Gap Fill** | **Critical Missing Logic**: Port Org hierarchy resolution, full scraping pipeline, manual corrections, and Author-Publication aggregation. |
 | NO  | **6** | **Frontend** | Create the clean `app.py` Marimo notebook that serves as the UI. |
 
 ---
@@ -106,9 +106,6 @@ Notes (differences / clarifications):
 - Tests for settings & models were added. The models `openalex.py` copy is comprehensive (closely mirrors `openalex_data_models.py`) so downstream typed clients can be implemented in Step 3.
 - `faculties.json` includes `ut_uuid` and `openalex_ut_id` so that processing functions can reference them without hardcoding.
 
----
-
-## Steps to be implemented
 
 ### Step 2: Infrastructure (Utils & Base Client)
 **Goal**: Reusable plumbing for network requests and logging.
@@ -188,6 +185,56 @@ Notes (changes & clarifications):
         3.  **Ingest**: Fetch Pure (OAI), OpenAlex (Bulk), scrape People Pages (Async gather).
         4.  **Transform**: Call `processing` functions.
         5.  **Report**: Call `export` functions.
+---
+
+## Steps to be implemented
+
+### Step 5b: Advanced Enrichment & Merging (Gap Filling)
+**Goal**: Restore the deep enrichment and aggregation logic from the legacy monolith to ensure data completeness.
+
+1.  **`src/syntheca/processing/organizations.py` (New Module)**:
+    *   **Port logic from**: `clean_and_enrich_persons_data` (specifically the org data cleaning parts).
+    *   `resolve_org_hierarchy(orgs_df: pl.DataFrame) -> pl.DataFrame`:
+        *   Resolve `part_of` relationships to find the "Parent Org" for every unit.
+        *   Map names to short-codes (e.g., "Faculty of ..." -> "tnw") using `faculties.json`.
+    *   `map_author_affiliations(authors_df: pl.DataFrame, processed_orgs_df: pl.DataFrame) -> pl.DataFrame`:
+        *   Join authors to organizations on `affiliation_id`.
+        *   Flag "is_ut" based on the UUID.
+        *   Assign boolean faculty flags based on the hierarchy resolution.
+
+2.  **Update `src/syntheca/processing/enrichment.py`**:
+    *   **Port logic from**: `enrich_employee_data` and `parse_org_details`.
+    *   `parse_scraped_org_details(authors_df: pl.DataFrame) -> pl.DataFrame`:
+        *   Process the data structure returned by `scrape_profile` (which will need to be added to the DF).
+        *   Extract `department`, `group`, `faculty` strings and create boolean flags for institutes (dsi, mesa, etc.).
+    *   `apply_manual_corrections(df: pl.DataFrame) -> pl.DataFrame`:
+        *   Load `corrections.json`.
+        *   Update affiliations/boolean flags for specific authors found in the mapping.
+
+3.  **Update `src/syntheca/processing/merging.py`**:
+    *   **Port logic from**: `join_authors_and_publications`.
+    *   `join_authors_and_publications(publications_df: pl.DataFrame, authors_df: pl.DataFrame) -> pl.DataFrame`:
+        *   Explode `publications_df` by author ID.
+        *   Join with the fully enriched `authors_df`.
+        *   **Aggregation**:
+            *   Boolean cols (tnw, eemcs, etc.): Use `any()` (if any author is TNW, the pub is TNW).
+            *   List cols (groups, depts): Flatten and `unique()`.
+            *   Metadata (orcids): Collect unique.
+        *   Join aggregated data back to the original `publications_df`.
+
+4.  **Update `src/syntheca/pipeline.py`**:
+    *   Update `run()` to execute the full flow:
+        1.  **Ingest**: Fetch `publications`, `persons`, `orgs` from Pure (ensure all are cached to parquet).
+        2.  **Process Orgs**: Call `resolve_org_hierarchy`.
+        3.  **Process Persons (Pure)**: Call `map_author_affiliations`.
+        4.  **Process Persons (Scraper)**:
+            *   Filter for UT authors.
+            *   Orchestrate `search_person` -> `scrape_profile` (async loop).
+            *   Update persons DF with scraped data.
+            *   Call `parse_scraped_org_details`.
+        5.  **Corrections**: Call `apply_manual_corrections`.
+        6.  **Merge**: Call `join_authors_and_publications` to fuse persons into publications.
+        7.  **Finalize**: Merge with OILS/OpenAlex (existing logic) and Export.
 
 ### Step 6: Frontend (Marimo)
 **Goal**: User Interface.
@@ -197,6 +244,7 @@ Notes (changes & clarifications):
     *   **UI**: `mo.ui.file_browser`, `mo.ui.checkbox`, `mo.ui.range_slider`.
     *   **Action**: Button click triggers `await Pipeline().run(...)`.
     *   **Display**: Show progress bars and final DataFrame sample.
+
 
 ---
 
