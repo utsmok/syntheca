@@ -161,33 +161,42 @@ Notes (changes & clarifications):
 **Goal**: Pure functions that take DataFrames and return DataFrames.
 
 1.  **`src/syntheca/processing/cleaning.py`**:
-    *   `clean_publications(df)`: Date standardization, Publisher normalization (load `publishers.json`).
+    *   ✅ `clean_publications(df)`: Date standardization, Publisher normalization (load `publishers.json`), ISSN/ISBN extraction, part_of parsing, DOI filtering, column dropping.
     *   `clean_persons(df)`: Name standardization.
 2.  **`src/syntheca/processing/matching.py`**:
-    *   `calculate_fuzzy_match(series_a, series_b)`: Use `levenshtein`.
-    *   `resolve_missing_ids(df, client)`: Logic to isolate rows missing DOIs, call the OpenAlex client for title search, and merge results.
+    *   ✅ `calculate_fuzzy_match(series_a, series_b)`: Use `levenshtein`.
+    *   ✅ `resolve_missing_ids(df, client)`: Logic to isolate rows missing DOIs, call the OpenAlex client for title search, and merge results.
 3.  **`src/syntheca/processing/enrichment.py`**:
-    *   `enrich_authors_with_faculties(authors, pubs, orgs)`: The complex logic linking authors -> orgs -> faculties.
-    *   `apply_manual_corrections(df)`: Apply the rules from `corrections.json`.
+    *   ✅ `enrich_authors_with_faculties(authors)`: Loads faculty mappings and adds boolean columns.
+    *   ✅ `clean_and_enrich_persons_data(persons, orgs)`: Full person data cleaning with organization hierarchy parsing, people page URLs, and UT filtering.
+    *   ✅ `join_authors_and_publications(authors, pubs)`: Complex logic linking authors -> orgs -> faculties, aggregating to publications.
+    *   ~~`apply_manual_corrections(df)`~~ → ✅ `add_missing_affils(df)`: Apply the rules from `corrections.json` (moved to merging.py).
 4.  **`src/syntheca/processing/merging.py`**:
-    *   `merge_datasets(pure_df, openalex_df, oils_df)`: High-level joins.
-    *   `deduplicate(df)`: Logic to handle duplicate entries based on DOI/Title.
+    *   ✅ `merge_datasets(oils_df, full_df)`: High-level joins using normalized DOIs.
+    *   ✅ `merge_oils_with_all(oils_df, full_df)`: OILS-specific merge with match tracking columns (openalex_match, oils_match, pure_match).
+    *   ✅ `extract_author_and_funder_names(df)`: Extract display names from nested authorships/funders/authors structs.
+    *   ✅ `add_missing_affils(df)`: Apply manual affiliation corrections from corrections.json.
+    *   ✅ `deduplicate(df)`: Logic to handle duplicate entries based on DOI/Title.
+
+**Status**: Step 4 is now complete with full alignment to legacy monolith transformation logic.
 
 ### Step 5: Reporting & Orchestration
 **Goal**: Tie it all together and produce output.
 
 1.  **`src/syntheca/reporting/export.py`**:
-    *   `write_formatted_excel(df, path)`: Use `xlsxwriter` via Polars. Apply column widths and date formats.
-    *   `write_parquet(df, path)`.
+    *   ✅ `write_formatted_excel(df, path)`: Use `xlsxwriter` via Polars. Apply column widths, date formats, column ordering, nested column dropping, and URL cleanup.
+    *   ✅ `write_parquet(df, path)`.
 2.  **`src/syntheca/pipeline.py`**:
-    *   Create `class Pipeline`.
-    *   **Method**: `run(...)` (Async).
-    *   **Logic**:
+    *   ✅ Create `class Pipeline`.
+    *   ✅ **Method**: `run(...)` (Async).
+    *   ✅ **Logic**:
         1.  Load Config.
         2.  Initialize Clients.
         3.  **Ingest**: Fetch Pure (OAI), OpenAlex (Bulk), scrape People Pages (Async gather).
-        4.  **Transform**: Call `processing` functions.
+        4.  **Transform**: Call `processing` functions (can be extended to use new functions).
         5.  **Report**: Call `export` functions.
+
+**Status**: Step 5 is complete. Pipeline can optionally be enhanced to use the new transformation functions (merge_oils_with_all, extract_author_and_funder_names, add_missing_affils, join_authors_and_publications) in the proper sequence to fully replicate monolith behavior.
 
 ### Step 6: Frontend (Marimo)
 **Goal**: User Interface.

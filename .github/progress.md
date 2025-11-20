@@ -132,3 +132,42 @@ Summary:
 - Added tests verifying persistence and concurrent progress bar behavior: `tests/test_utils_persistence.py`, `tests/test_concurrent_progress_bars.py`, updates to `tests/test_clients_*` to check saving of parquet files when configured.
 
 
+
+
+---
+
+2025-11-20 - Alignment with Legacy Monolith: Data Parsing, Merging, and Excel Export
+
+Summary:
+- Enhanced `src/syntheca/processing/cleaning.py` to match monolith logic:
+- Added `load_publisher_mapping()` to load and apply publisher name normalization
+- Added ISSN/ISBN extraction from nested struct/list fields
+- Added `part_of` parsing to extract journal/source title information
+- Filter rows without DOIs and drop fully null columns
+- Handle known bad date values
+- Rename `internal_repository_id` to `pure_id` for consistency
+- Convert list columns to joined strings
+- Enhanced `src/syntheca/processing/enrichment.py` to match monolith logic:
+- Implemented `clean_and_enrich_persons_data()` for comprehensive person data cleaning
+- Added people page URL generation
+- Parse organization hierarchies and match to faculties
+- Filter to UT-affiliated persons
+- Implemented `join_authors_and_publications()` to aggregate author affiliation data
+- Enhanced `src/syntheca/processing/merging.py` to match monolith logic:
+- Implemented `merge_oils_with_all()` for OILS dataset merging with match tracking
+- Implemented `extract_author_and_funder_names()` to extract display names from nested structs
+- Implemented `add_missing_affils()` for manual affiliation corrections
+- Enhanced `src/syntheca/reporting/export.py` to match monolith Excel export:
+- Added column ordering, drop nested columns, URL cleanup
+- Use proper column formats matching monolith
+
+Tests:
+- Added comprehensive integration tests in `tests/test_monolith_alignment.py`
+- All existing tests pass (38 passed) + 10 new tests
+- Excel exports will now match the structure from the legacy notebook
+
+Notes:
+- All key transformation functions from the legacy monolith are now implemented
+- Functions can be used independently or integrated into pipeline as needed
+- Mappings externalized to JSON for maintainability
+

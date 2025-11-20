@@ -154,7 +154,7 @@ def clean_publications(df: pl.DataFrame) -> pl.DataFrame:
     if "publishers" in out.columns:
         mapping = load_publisher_mapping()
         if mapping:
-            out = out.with_columns(pl.col("publishers").replace(mapping, default=None))
+            out = out.with_columns(pl.col("publishers").replace_strict(mapping, default=pl.col("publishers")))
 
     # ISSN extraction (from monolith)
     if "issn" in out.columns and "pure_id" in out.columns:
