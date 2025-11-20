@@ -96,3 +96,28 @@ Notes:
 Notes:
 - `resolve_missing_ids` is conservative: only matches that exceed a default `threshold=0.9` are used. The function also provides a small boost for UT-affiliated OpenAlex works to help resolve ambiguous titles.
 - `deduplicate` is intentionally simple and returns a stable, deterministic subset. Later versions can implement more complex title-similarity or ID heuristics.
+
+---
+
+2025-11-20 - Completed Step 5: Reporting & Pipeline
+
+Summary:
+- Implemented `src/syntheca/reporting/export.py` with `write_parquet` and `write_formatted_excel` using Polars' IO (`write_parquet` / `write_excel`). `write_formatted_excel` uses `autofit` and `dtype_formats` for basic date formatting.
+- Implemented `src/syntheca/pipeline.py` with an async `Pipeline` that:
+	- Accepts `oils_df`, `full_df`, and `authors_df` directly for deterministic unit testing.
+	- Accepts optional client instances (`pure_client`, `openalex_client`, `ut_people_client`) for client-based ingestion.
+	- Supports `openalex_ids` to bulk fetch OpenAlex works when `full_df` is not supplied.
+	- Supports `people_search_names` to call `UTPeopleClient.search_person` when `authors_df` is missing.
+	- Integrates cleaning, enrichment, merging, and deduplication.
+	- Writes `merged.parquet` and `merged.xlsx` to `output_dir` if provided.
+
+Tests:
+- Added `tests/test_reporting_export.py` for exports.
+- Added `tests/test_pipeline.py` and `tests/test_pipeline_clients.py` (with fake clients) to validate pipeline logic and client ingestion flows.
+- Fixed `cleaning.normalize_doi` to create a Null `_norm_doi` when DOI column missing to avoid `ColumnNotFoundError` during merges/deduplication.
+
+Notes:
+- Pipeline client ingestion is minimal and intended for controlled testable ingestion paths. Client lifecycle (async context manager) and production-ready ingestion flows (pagination, rate-limits, and large-batch downloads) can be added in subsequent iterations.
+- `write_formatted_excel` uses Polars' `write_excel` to avoid adding a hard `pandas` dependency and to leverage `xlsxwriter` formatting features.
+- All tests pass locally (31 passed, 0 failed) after these changes.
+

@@ -1,5 +1,5 @@
-from httpx import MockTransport, Response
 import pytest
+from httpx import MockTransport, Response
 
 from syntheca.clients.openalex import OpenAlexClient
 
@@ -31,9 +31,7 @@ async def test_get_works_by_ids_parses(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_works_by_title(monkeypatch):
     # Autocomplete returns a list with id; request for works details returns the work JSON
-    autocomplete = {
-        "results": [{"id": "https://openalex.org/W1", "display_name": "Test Work"}]
-    }
+    autocomplete = {"results": [{"id": "https://openalex.org/W1", "display_name": "Test Work"}]}
     work_json = {
         "id": "https://openalex.org/W1",
         "display_name": "Test Work",

@@ -24,6 +24,10 @@ def normalize_doi(df: pl.DataFrame, col_name: str, new_col: str | None = None) -
     """
 
     new_col = new_col or col_name
+    if col_name not in df.columns:
+        # Create placeholder column with nulls to allow later joins/ops to proceed
+        return df.with_columns(pl.lit(None).cast(pl.Utf8).alias(new_col))
+
     return df.with_columns(
         pl.col(col_name)
         .cast(pl.Utf8)

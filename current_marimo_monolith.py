@@ -5,23 +5,23 @@ app = marimo.App(width="columns")
 
 with app.setup:
     import asyncio
-    from collections import defaultdict
     import difflib
     import functools
-    from pathlib import Path
     import pickle
     import re
     import time
+    from collections import defaultdict
+    from pathlib import Path
     from time import sleep
 
     import altair as alt
     import httpx
-    from Levenshtein import ratio
     import marimo as mo
     import polars as pl
+    import xmltodict
+    from Levenshtein import ratio
     from rich import print
     from selectolax.parser import HTMLParser
-    import xmltodict
 
     # INPUT / SETTINGS
     publications_path = "works.pkl"
@@ -150,27 +150,21 @@ def _(add_openalex_to_df, enrich_employee_data):
         """
 
         if not isinstance(input_clean_data, pl.DataFrame):
-            print(
-                f"Data from: {publications_path}, {orgs_path}, {persons_path}, {oils_data_path}"
-            )
+            print(f"Data from: {publications_path}, {orgs_path}, {persons_path}, {oils_data_path}")
         else:
-            print(
-                f"Data from provided cleaned DataFrame with {input_clean_data.height} rows"
-            )
+            print(f"Data from provided cleaned DataFrame with {input_clean_data.height} rows")
 
         print(
             f"Filters: years={filter_years}, publisher={filter_publisher}, faculty={filter_faculty} "
         )
-        print(
-            f"Queries: People Page={run_people_page_queries}, OpenAlex={run_openalex_queries}"
-        )
+        print(f"Queries: People Page={run_people_page_queries}, OpenAlex={run_openalex_queries}")
         print(
             f"merge_with_oils={merge_with_oils}, input_clean_data provided={isinstance(input_clean_data, pl.DataFrame)}"
         )
 
-        oils_data = pl.read_excel(oils_data_path, sheet_name="Bron Publ").rename({
-            "DOIs (Digital Object Identifiers) link": "doi"
-        })
+        oils_data = pl.read_excel(oils_data_path, sheet_name="Bron Publ").rename(
+            {"DOIs (Digital Object Identifiers) link": "doi"}
+        )
 
         if not isinstance(input_clean_data, pl.DataFrame):
             # LOAD
@@ -178,9 +172,7 @@ def _(add_openalex_to_df, enrich_employee_data):
                 load_pure_data_from_files(publications_path, orgs_path, persons_path)
             )
             ut_publications_cleaned = clean_publications(pure_publications_ingest)
-            ut_person_data = clean_and_enrich_persons_data(
-                pure_persons_ingest, pure_orgs_ingest
-            )
+            ut_person_data = clean_and_enrich_persons_data(pure_persons_ingest, pure_orgs_ingest)
             selected_items = ut_publications_cleaned
         else:
             selected_items = input_clean_data
@@ -192,9 +184,7 @@ def _(add_openalex_to_df, enrich_employee_data):
             )
 
         if filter_publisher:
-            selected_items = selected_items.filter(
-                pl.col("publisher").is_in(filter_publisher)
-            )
+            selected_items = selected_items.filter(pl.col("publisher").is_in(filter_publisher))
 
         if not isinstance(input_clean_data, pl.DataFrame):
             # ENRICH
@@ -207,9 +197,7 @@ def _(add_openalex_to_df, enrich_employee_data):
             else:
                 ut_person_data = await enrich_employee_data(ut_person_data)
 
-            ut_publications_enriched = join_authors_and_publications(
-                ut_person_data, selected_items
-            )
+            ut_publications_enriched = join_authors_and_publications(ut_person_data, selected_items)
 
             if filter_faculty:
                 gathered = []
@@ -266,14 +254,10 @@ def _(add_openalex_to_df, enrich_employee_data):
             ut_publications_enriched_plus_oa = merge_oils_with_all(
                 oils_data, ut_publications_enriched_plus_oa
             ).with_columns(
-                pl.concat_str([pl.lit("https://doi.org/"), pl.col("doi")]).alias(
-                    "doi_url"
-                ),
+                pl.concat_str([pl.lit("https://doi.org/"), pl.col("doi")]).alias("doi_url"),
             )
 
-        pure_oils_oa_df = extract_author_and_funder_names(
-            ut_publications_enriched_plus_oa
-        )
+        pure_oils_oa_df = extract_author_and_funder_names(ut_publications_enriched_plus_oa)
         pure_oils_oa_df = add_missing_affils(pure_oils_oa_df)
 
         return pure_oils_oa_df
@@ -320,8 +304,8 @@ def load_pure_data_from_files(
 @app.function
 @timing_decorator
 def load_pure_publications_from_pickle(pickle_path: str | Path) -> pl.DataFrame:
-    from collections import Counter
     import pickle
+    from collections import Counter
 
     # load in pure publication data from pickle and
     # coerce all fields to a common type so we can create a df without schema issues
@@ -356,12 +340,7 @@ def load_pure_publications_from_pickle(pickle_path: str | Path) -> pl.DataFrame:
         for k, v in item.items():
             match k:
                 case (
-                    "title"
-                    | "subtitle"
-                    | "publishers"
-                    | "license"
-                    | "keywords"
-                    | "originates_from"
+                    "title" | "subtitle" | "publishers" | "license" | "keywords" | "originates_from"
                 ):
                     if not v:
                         new_item[k] = []
@@ -417,10 +396,7 @@ def clean_and_enrich_persons_data(person_data, org_data):
     ]
     short_faculty_names = ["tnw", "et", "eemcs", "bms", "itc", "techmed", "dsi", "mesa"]
 
-    if (
-        "family_names" not in person_data.columns
-        or "first_names" not in person_data.columns
-    ):
+    if "family_names" not in person_data.columns or "first_names" not in person_data.columns:
         mo.output.append(
             mo.md(
                 f"""warning | No `family_names` & `first_names` column found
@@ -434,40 +410,42 @@ def clean_and_enrich_persons_data(person_data, org_data):
         )
     else:
         people_page_url = "https://people.utwente.nl/overview?query="
-        person_data = person_data.rename({
-            "internal_repository_id": "pure_id",
-            "family_names": "last_name",
-            "first_names": "first_name",
-        }).drop([
-            "scopus_affil_id",
-            "researcher_id",
-            "isni",
-            "cris-id",
-            "uuid",
-            "uri",
-            "url",
-        ])
+        person_data = person_data.rename(
+            {
+                "internal_repository_id": "pure_id",
+                "family_names": "last_name",
+                "first_names": "first_name",
+            }
+        ).drop(
+            [
+                "scopus_affil_id",
+                "researcher_id",
+                "isni",
+                "cris-id",
+                "uuid",
+                "uri",
+                "url",
+            ]
+        )
 
         names_for_people_page = (
-            person_data.select(["last_name", "first_name", "pure_id"])
-            .drop_nulls()
-            .to_dicts()
+            person_data.select(["last_name", "first_name", "pure_id"]).drop_nulls().to_dicts()
         )
         people_page_urls = [
             {
                 "pure_id": pers["pure_id"],
-                "url": "".join([
-                    people_page_url,
-                    pers["first_name"],
-                    "%20",
-                    pers["last_name"],
-                ]).replace(" ", "%20"),
+                "url": "".join(
+                    [
+                        people_page_url,
+                        pers["first_name"],
+                        "%20",
+                        pers["last_name"],
+                    ]
+                ).replace(" ", "%20"),
             }
             for pers in names_for_people_page
         ]
-        person_data = person_data.join(
-            pl.from_dicts(people_page_urls), on="pure_id", how="left"
-        )
+        person_data = person_data.join(pl.from_dicts(people_page_urls), on="pure_id", how="left")
 
     if any(["affiliations" not in person_data.columns]):
         mo.output.append(
@@ -493,9 +471,7 @@ def clean_and_enrich_persons_data(person_data, org_data):
         .with_columns(pl.col("part_of").struct.field("name").alias("parent_org"))
         .drop(["identifiers", "part_of", "acronym", "url"])
         .with_columns(
-            pl.col("parent_org").str.replace_many(
-                full_faculty_names, short_faculty_names
-            ),
+            pl.col("parent_org").str.replace_many(full_faculty_names, short_faculty_names),
             pl.col("name").str.replace_many(full_faculty_names, short_faculty_names),
         )
         .with_columns(
@@ -514,13 +490,15 @@ def clean_and_enrich_persons_data(person_data, org_data):
             how="left",
         )
         .drop_nulls()
-        .with_columns([
-            pl.when(pl.col("parent_org").eq(col))
-            .then(pl.lit(True))
-            .otherwise(pl.lit(False))
-            .alias(col)
-            for col in short_faculty_names
-        ])
+        .with_columns(
+            [
+                pl.when(pl.col("parent_org").eq(col))
+                .then(pl.lit(True))
+                .otherwise(pl.lit(False))
+                .alias(col)
+                for col in short_faculty_names
+            ]
+        )
     )
 
     pure_persons_with_affil_ids = (
@@ -589,9 +567,7 @@ def parse_organization_details(tree: HTMLParser) -> list[dict[str, any]]:
         return None
 
     org_widget = org_heading.next
-    if not org_widget or "widget-linklist" not in org_widget.attributes.get(
-        "class", ""
-    ):
+    if not org_widget or "widget-linklist" not in org_widget.attributes.get("class", ""):
         return None
 
     list_items = org_widget.css("li.widget-linklist__item")
@@ -715,9 +691,7 @@ def _(verbose):
         payload = {
             "id": 1,
             "method": "SearchPersons",
-            "params": [
-                {"query": query, "page": 0, "resultsperpage": 20, "langcode": "en"}
-            ],
+            "params": [{"query": query, "page": 0, "resultsperpage": 20, "langcode": "en"}],
         }
 
         try:
@@ -725,10 +699,7 @@ def _(verbose):
             response.raise_for_status()
             json_response = response.json()
 
-            if not (
-                json_response.get("result")
-                and json_response["result"].get("resultshtml")
-            ):
+            if not (json_response.get("result") and json_response["result"].get("resultshtml")):
                 return None
 
             html_content = json_response["result"]["resultshtml"].replace("\\", "")
@@ -744,7 +715,9 @@ def _(verbose):
                 found_name = name_node.text(strip=True)
                 parsed_name = parse_found_name(found_name)
 
-                found_name_final = f"{parsed_name['first_name']} {parsed_name['last_name'].replace(',', '')}"
+                found_name_final = (
+                    f"{parsed_name['first_name']} {parsed_name['last_name'].replace(',', '')}"
+                )
                 ratio_val = ratio(found_name_final, query, score_cutoff=0.79)
                 if (ratio_val < 0.8) and (" " in parsed_name["first_name"]):
                     found_name_final = f"{parsed_name['first_name'].split(' ')[0]} {parsed_name['last_name'].replace(',', '')}"
@@ -757,13 +730,9 @@ def _(verbose):
                     first_letter_query = {first_name[0]}
                     query = f"{first_name[0]} {last_name}"
                     first_letter_found = parsed_name["initials"][0]
-                    found_name_final = (
-                        f"{first_letter_found} {parsed_name['last_name']}"
-                    )
+                    found_name_final = f"{first_letter_found} {parsed_name['last_name']}"
                     if first_letter_query == first_letter_found:
-                        ratio_val = ratio(
-                            {parsed_name["last_name"]}, last_name, score_cutoff=0.79
-                        )
+                        ratio_val = ratio({parsed_name["last_name"]}, last_name, score_cutoff=0.79)
 
                 if verbose:
                     print(
@@ -782,9 +751,7 @@ def _(verbose):
                         "found_name": found_name,
                         "role": role_node.text(strip=True) if role_node else None,
                         "email": email_node.text(strip=True) if email_node else None,
-                        "people_page_url": url_node.attributes.get("href")
-                        if url_node
-                        else None,
+                        "people_page_url": url_node.attributes.get("href") if url_node else None,
                         "main_orgs": orgs if orgs else None,
                     }
                     return result_dict
@@ -819,13 +786,9 @@ def _(fetch_employee_data, fetch_organization_details):
             ]
             search_results = await asyncio.gather(*search_tasks)
 
-            page_urls = [
-                res.get("people_page_url") if res else None for res in search_results
-            ]
+            page_urls = [res.get("people_page_url") if res else None for res in search_results]
 
-            detail_tasks = [
-                fetch_organization_details(client, url) for url in page_urls
-            ]
+            detail_tasks = [fetch_organization_details(client, url) for url in page_urls]
             detail_results = await asyncio.gather(*detail_tasks)
 
         # Consolidate all data
@@ -834,12 +797,8 @@ def _(fetch_employee_data, fetch_organization_details):
                 "found_name_pp",
                 [res.get("found_name") if res else None for res in search_results],
             ),
-            pl.Series(
-                "role", [res.get("role") if res else None for res in search_results]
-            ),
-            pl.Series(
-                "email", [res.get("email") if res else None for res in search_results]
-            ),
+            pl.Series("role", [res.get("role") if res else None for res in search_results]),
+            pl.Series("email", [res.get("email") if res else None for res in search_results]),
             pl.Series("url_pp", page_urls),
             pl.Series(
                 "orgs_pp",
@@ -871,9 +830,7 @@ def parse_org_details(df: pl.DataFrame) -> pl.DataFrame:
     }
 
     # add columns to df, one per value in parsing_mapping, type bool, default false
-    df = df.with_columns([
-        pl.lit(False).alias(col_name) for col_name in parsing_mapping.values()
-    ])
+    df = df.with_columns([pl.lit(False).alias(col_name) for col_name in parsing_mapping.values()])
     if "org_details_pp" not in df.columns:
         mo.output.append(
             mo.md(
@@ -894,22 +851,22 @@ def parse_org_details(df: pl.DataFrame) -> pl.DataFrame:
             )
             .alias("parsed_name")
         )
-        .with_columns([
-            pl.col("parsed_name").list.contains(col_name).alias(col_name + "_new")
-            for name, col_name in parsing_mapping.items()
-        ])
-        .with_columns([
-            pl.col(col_name + "_new").fill_null(False)
-            for col_name in parsing_mapping.values()
-        ])
-        .with_columns([
-            (pl.col(col_name) | pl.col(col_name + "_new")).alias(col_name)
-            for col_name in parsing_mapping.values()
-        ])
-        .drop(
-            [col_name + "_new" for col_name in parsing_mapping.values()]
-            + ["parsed_name"]
+        .with_columns(
+            [
+                pl.col("parsed_name").list.contains(col_name).alias(col_name + "_new")
+                for name, col_name in parsing_mapping.items()
+            ]
         )
+        .with_columns(
+            [pl.col(col_name + "_new").fill_null(False) for col_name in parsing_mapping.values()]
+        )
+        .with_columns(
+            [
+                (pl.col(col_name) | pl.col(col_name + "_new")).alias(col_name)
+                for col_name in parsing_mapping.values()
+            ]
+        )
+        .drop([col_name + "_new" for col_name in parsing_mapping.values()] + ["parsed_name"])
     )
 
     # also extract org / institute names and abbrs into separate cols, using comma-separated strings as values in case of multiple entries
@@ -963,38 +920,31 @@ def clean_publications(pure_publications: pl.DataFrame) -> pl.DataFrame:
     pure_publications = (
         pure_publications.rename({"internal_repository_id": "pure_id"})
         .with_columns(
-            pl.col("publication_date").replace(
-                ["2-01-23", "3-03-15"], ["2023-01-02", "2015-03-03"]
-            )
+            pl.col("publication_date").replace(["2-01-23", "3-03-15"], ["2023-01-02", "2015-03-03"])
         )
         .with_columns(
-            pl.col("doi")
-            .str.to_lowercase()
-            .replace("https://doi.org/", "")
-            .str.strip_chars(),
-            pl.coalesce([
-                pl.col("publication_date").str.to_date("%Y-%m-%d", strict=False),
-                pl.col("publication_date").str.to_date("%Y-%m", strict=False),
-                pl.col("publication_date").str.to_date("%Y", strict=False),
-            ]).alias("publication_date_cleaned"),
+            pl.col("doi").str.to_lowercase().replace("https://doi.org/", "").str.strip_chars(),
+            pl.coalesce(
+                [
+                    pl.col("publication_date").str.to_date("%Y-%m-%d", strict=False),
+                    pl.col("publication_date").str.to_date("%Y-%m", strict=False),
+                    pl.col("publication_date").str.to_date("%Y", strict=False),
+                ]
+            ).alias("publication_date_cleaned"),
         )
-        .with_columns(
-            pl.col("publication_date_cleaned").dt.year().alias("publication_year")
-        )
+        .with_columns(pl.col("publication_date_cleaned").dt.year().alias("publication_year"))
     )
 
     # drop unnecessary cols and fully null cols
-    pure_publications = pure_publications.select([
-        col
-        for col in pure_publications.columns
-        if pure_publications.select(pl.col(col).is_not_null().any()).to_series()[0]
-    ])
-    pure_publications = pure_publications[
+    pure_publications = pure_publications.select(
         [
-            s.name
-            for s in pure_publications
-            if not (s.null_count() == pure_publications.height)
+            col
+            for col in pure_publications.columns
+            if pure_publications.select(pl.col(col).is_not_null().any()).to_series()[0]
         ]
+    )
+    pure_publications = pure_publications[
+        [s.name for s in pure_publications if not (s.null_count() == pure_publications.height)]
     ]
     drop_cols = [
         "language",
@@ -1006,17 +956,19 @@ def clean_publications(pure_publications: pl.DataFrame) -> pl.DataFrame:
         "endpage",
         "references",
     ]
-    pure_publications = pure_publications.drop([
-        x for x in drop_cols if x in pure_publications.columns
-    ])
+    pure_publications = pure_publications.drop(
+        [x for x in drop_cols if x in pure_publications.columns]
+    )
 
     # parse list cols that can also just be strs
     list_cols_to_reduce = ["title", "subtitle", "publishers", "license"]
-    pure_publications = pure_publications.with_columns([
-        pl.col(col).list.join("; ").alias(col)
-        for col in list_cols_to_reduce
-        if col in pure_publications.columns
-    ])
+    pure_publications = pure_publications.with_columns(
+        [
+            pl.col(col).list.join("; ").alias(col)
+            for col in list_cols_to_reduce
+            if col in pure_publications.columns
+        ]
+    )
 
     # do some fixing of data
 
@@ -1082,9 +1034,7 @@ def clean_publications(pure_publications: pl.DataFrame) -> pl.DataFrame:
         }
 
         # flip the mapping
-        actual_mapping = {
-            v: k for k, vals in publisher_name_mapping.items() for v in vals
-        }
+        actual_mapping = {v: k for k, vals in publisher_name_mapping.items() for v in vals}
         pure_publications = pure_publications.with_columns(
             pl.col("publishers").replace(actual_mapping)
         )
@@ -1108,9 +1058,7 @@ def clean_publications(pure_publications: pl.DataFrame) -> pl.DataFrame:
             flat_list.append({"pure_id": item["pure_id"], "issns": list(issns)})
 
         issn_df = pl.from_dicts(flat_list)
-        pure_publications = pure_publications.join(
-            issn_df, on="pure_id", how="left"
-        ).drop("issn")
+        pure_publications = pure_publications.join(issn_df, on="pure_id", how="left").drop("issn")
 
     # isbn
     # list of structs. from each struct, take value from field 'value'
@@ -1133,10 +1081,12 @@ def clean_publications(pure_publications: pl.DataFrame) -> pl.DataFrame:
                 pl.col("part_of").struct.field("cerif:Publication").alias("part_of")
             )
             .with_columns(pl.col("part_of").struct.unnest())
-            .rename({
-                "cerif:Title": "journal_name",
-                "cerif:Subtitle": "journal_extra",
-            })
+            .rename(
+                {
+                    "cerif:Title": "journal_name",
+                    "cerif:Subtitle": "journal_extra",
+                }
+            )
             .with_columns(
                 pl.col("journal_name").struct.field("#text").alias("source_title"),
                 pl.col("journal_extra").struct.field("#text").alias("source_subtitle"),
@@ -1160,10 +1110,7 @@ def join_authors_and_publications(
         pl.DataFrame: Publications DataFrame enriched with merged author affiliation data -- so that for each publication we know which faculties/institutes any of the authors are affiliated with.
     """
 
-    if (
-        "internal_repository_id" not in authors_df.columns
-        and "pure_id" not in authors_df.columns
-    ):
+    if "internal_repository_id" not in authors_df.columns and "pure_id" not in authors_df.columns:
         print(f"Found columns: {authors_df.columns}")
         raise ValueError(
             "authors_df must contain either a 'internal_repository_id' or 'pure_id' column."
@@ -1203,30 +1150,32 @@ def join_authors_and_publications(
 
     # bools: check if 'any' author has a True value.
     agg_exprs = [
-        pl.col(col).any().alias(col)
-        for col in merge_cols_bool
-        if col in author_details.columns
+        pl.col(col).any().alias(col) for col in merge_cols_bool if col in author_details.columns
     ]
 
     # list[str]s: flatten all lists into one, then get unique values.
-    agg_exprs.extend([
-        pl.col(col)
-        .str.split(by="; ")
-        .flatten()
-        .unique()
-        .replace("", None)
-        .drop_nulls()
-        .alias(col)
-        for col in merge_cols_lists
-        if col in author_details.columns
-    ])
+    agg_exprs.extend(
+        [
+            pl.col(col)
+            .str.split(by="; ")
+            .flatten()
+            .unique()
+            .replace("", None)
+            .drop_nulls()
+            .alias(col)
+            for col in merge_cols_lists
+            if col in author_details.columns
+        ]
+    )
 
     # strs: collect all non-null, unique strings into a new list.
-    agg_exprs.extend([
-        pl.col(col).drop_nulls().unique().alias(col + "s")
-        for col in merge_cols_str
-        if col in author_details.columns
-    ])
+    agg_exprs.extend(
+        [
+            pl.col(col).drop_nulls().unique().alias(col + "s")
+            for col in merge_cols_str
+            if col in author_details.columns
+        ]
+    )
 
     # group and aggregrate
     merged_author_data = author_details.group_by("pure_id").agg(agg_exprs)
@@ -1259,15 +1208,11 @@ def get_counts_per_pure_publisher(
     institute_list = institute_list or ["dsi", "techmed", "mesa"]
     facs_and_insts = faculty_list + institute_list
     faculty_list = [x for x in faculty_list if x in enriched_publications_df.columns]
-    facs_and_insts = [
-        x for x in facs_and_insts if x in enriched_publications_df.columns
-    ]
+    facs_and_insts = [x for x in facs_and_insts if x in enriched_publications_df.columns]
     final_select = ["publisher", "total"] + [x + "_count" for x in facs_and_insts]
 
     if faculty_list:
-        maybe_agg = pl.sum_horizontal([x + "_count" for x in faculty_list]).alias(
-            "faculty_sum"
-        )
+        maybe_agg = pl.sum_horizontal([x + "_count" for x in faculty_list]).alias("faculty_sum")
         final_select.append("faculty_sum")
     else:
         maybe_agg = []
@@ -1332,16 +1277,14 @@ def get_openalex_works_bulk_by_id(
                     for start in range(0, len(chunk), temp_per_page):
                         try:
                             sub_chunk = chunk[start : start + temp_per_page]
-                            sub_filter_query = "|".join([
-                                str(x).replace("doi: ", "") for x in sub_chunk
-                            ])
+                            sub_filter_query = "|".join(
+                                [str(x).replace("doi: ", "") for x in sub_chunk]
+                            )
                             sub_params = {
                                 "filter": f"{id_type}:{sub_filter_query}",
                                 "per-page": temp_per_page,
                             }
-                            sub_response = client.get(
-                                openalex_works_api_url, params=sub_params
-                            )
+                            sub_response = client.get(openalex_works_api_url, params=sub_params)
                             sub_response.raise_for_status()
                             sub_data = sub_response.json()
                             all_works.extend(sub_data["results"])
@@ -1407,13 +1350,15 @@ def _(verbose):
                         not_found.append(title)
                         continue
                     item = data["results"][0]
-                    results.append({
-                        "search_title": title,
-                        "found_title": item.get("display_name"),
-                        "id": item.get("id"),
-                        "doi": item.get("external_id"),
-                        "authors": item.get("hint"),
-                    })
+                    results.append(
+                        {
+                            "search_title": title,
+                            "found_title": item.get("display_name"),
+                            "id": item.get("id"),
+                            "doi": item.get("external_id"),
+                            "authors": item.get("hint"),
+                        }
+                    )
                     if verbose:
                         print(
                             f"[{item.get('id')}] input:\n{title}\n         found:\n{item.get('display_name')}\n---------------\n"
@@ -1431,9 +1376,7 @@ def _(verbose):
             # for each title, cut off subtitles and retry
             print("retrying unfound titles by stripping subtitles...")
             stripped_titles = [t.split(":")[0].strip() for t in not_found]
-            more_results = get_openalex_works_by_title(
-                stripped_titles, retry_unfound=False
-            )
+            more_results = get_openalex_works_by_title(stripped_titles, retry_unfound=False)
             if more_results:
                 results.extend(more_results)
 
@@ -1468,9 +1411,7 @@ def clean_openalex_raw_data(df: pl.DataFrame) -> pl.DataFrame:
     return df.with_columns(
         pl.col("open_access").struct.field("is_oa").alias("is_oa"),
         pl.col("open_access").struct.field("oa_status").alias("oa_color"),
-        pl.col("open_access")
-        .struct.field("any_repository_has_fulltext")
-        .alias("in_repository"),
+        pl.col("open_access").struct.field("any_repository_has_fulltext").alias("in_repository"),
         pl.col("open_access").struct.field("oa_url").alias("oa_url"),
         pl.col("best_oa_location").struct.field("landing_page_url").alias("main_url"),
         pl.col("best_oa_location")
@@ -1485,9 +1426,7 @@ def clean_openalex_raw_data(df: pl.DataFrame) -> pl.DataFrame:
         .struct.field("source")
         .struct.field("type")
         .alias("oa_host_type"),
-        pl.col("primary_location")
-        .struct.field("landing_page_url")
-        .alias("primary_url"),
+        pl.col("primary_location").struct.field("landing_page_url").alias("primary_url"),
         pl.col("primary_location")
         .struct["source"]
         .struct["host_organization_name"]
@@ -1514,14 +1453,8 @@ def clean_openalex_raw_data(df: pl.DataFrame) -> pl.DataFrame:
         .struct.field("subfield")
         .struct.field("display_name")
         .alias("subfield"),
-        pl.col("primary_topic")
-        .struct.field("field")
-        .struct.field("display_name")
-        .alias("field"),
-        pl.col("primary_topic")
-        .struct.field("domain")
-        .struct.field("display_name")
-        .alias("domain"),
+        pl.col("primary_topic").struct.field("field").struct.field("display_name").alias("field"),
+        pl.col("primary_topic").struct.field("domain").struct.field("display_name").alias("domain"),
         pl.col("apc_list").struct.field("value_usd").alias("listed_apc_usd"),
         pl.col("apc_paid").struct.field("value_usd").alias("paid_apc_usd"),
         pl.col("corresponding_institution_ids")
@@ -1539,9 +1472,7 @@ def _(get_openalex_works_by_title):
             .with_columns(pl.col("title").str.strip_chars().alias("clean_title"))
             .drop_nulls("clean_title")
             .with_columns(
-                pl.when(
-                    (pl.col("subtitle").is_not_null()) & (pl.col("subtitle").ne(""))
-                )
+                pl.when((pl.col("subtitle").is_not_null()) & (pl.col("subtitle").ne("")))
                 .then(pl.col("clean_title") + pl.lit(": ") + pl.col("subtitle"))
                 .otherwise(pl.col("clean_title"))
                 .alias("search_title")
@@ -1549,9 +1480,7 @@ def _(get_openalex_works_by_title):
             .select(["title", "subtitle", "clean_title", "search_title"])
         )
 
-        print(
-            f"{unfound_items.height} items missing OpenAlex data: searching by title."
-        )
+        print(f"{unfound_items.height} items missing OpenAlex data: searching by title.")
 
         work_data_by_title = get_openalex_works_by_title(
             unfound_items.select("search_title").unique().to_series().to_list(),
@@ -1571,18 +1500,13 @@ def _(get_openalex_works_by_title):
         unmerged = (
             more_works.with_columns(
                 pl.col("id")
-                .replace({
-                    x.get("id"): x.get("search_title")
-                    for x in work_data_by_title
-                    if x.get("id")
-                })
+                .replace(
+                    {x.get("id"): x.get("search_title") for x in work_data_by_title if x.get("id")}
+                )
                 .alias("search_title")
             )
             .with_columns(
-                pl.col("search_title")
-                .str.split(":")
-                .list.first()
-                .alias("search_title_nosub")
+                pl.col("search_title").str.split(":").list.first().alias("search_title_nosub")
             )
             .unique("id")
         )
@@ -1592,18 +1516,20 @@ def _(get_openalex_works_by_title):
             f"{df.height} items in main df, {df.filter(pl.col('id').is_null()).height} have no openalexid"
         )
 
-        ratio_df = pl.DataFrame([
-            {
-                "id": x["id"],
-                "title_ratio": difflib.SequenceMatcher(
-                    None,
-                    x["display_name"].lower().strip(),
-                    x["search_title"].lower().strip(),
-                    autojunk=True,
-                ).ratio(),
-            }
-            for x in unmerged.select(["id", "display_name", "search_title"]).to_dicts()
-        ])
+        ratio_df = pl.DataFrame(
+            [
+                {
+                    "id": x["id"],
+                    "title_ratio": difflib.SequenceMatcher(
+                        None,
+                        x["display_name"].lower().strip(),
+                        x["search_title"].lower().strip(),
+                        autojunk=True,
+                    ).ratio(),
+                }
+                for x in unmerged.select(["id", "display_name", "search_title"]).to_dicts()
+            ]
+        )
         unmerged = unmerged.join(ratio_df, how="left", on="id")
 
         unmerged = unmerged.with_columns(
@@ -1611,9 +1537,7 @@ def _(get_openalex_works_by_title):
             .list.eval(pl.element().struct.field("display_name"))
             .alias("inst_names")
         ).with_columns(
-            pl.col("inst_names")
-            .list.contains("University of Twente")
-            .alias("ut_found_in_oa")
+            pl.col("inst_names").list.contains("University of Twente").alias("ut_found_in_oa")
         )
 
         print(
@@ -1628,9 +1552,7 @@ def _(get_openalex_works_by_title):
             suffix="_oa_extra",
         )
         not_yet_found = unmerged.filter(
-            ~pl.col("id").is_in(
-                with_more_works.select("id_oa_extra").to_series().to_list()
-            )
+            ~pl.col("id").is_in(with_more_works.select("id_oa_extra").to_series().to_list())
         )
         print(f"{not_yet_found.height} unmerged left after merge 1")
 
@@ -1643,55 +1565,53 @@ def _(get_openalex_works_by_title):
         )
 
         not_yet_found = not_yet_found.filter(
-            ~pl.col("id").is_in(
-                with_more_works.select("id_oa_extra_2").to_series().to_list()
-            )
+            ~pl.col("id").is_in(with_more_works.select("id_oa_extra_2").to_series().to_list())
         )
         print(f"{not_yet_found.height} unmerged left after merge 2")
 
         # some manual fixed title matches
-        match_titles = pl.DataFrame([
-            {
-                "id": "https://openalex.org/W2753835807",
-                "match_title": "Geographic variability of Twitter usage characteristics during disaster events : open access",
-            },
-            {
-                "id": "https://openalex.org/W4410616102",
-                "match_title": "On the thermal degradation of lubricant grease: Degradation analysis",
-            },
-            {
-                "id": "https://openalex.org/W576524927",
-                "match_title": "High-impact low-probability events: Exposure to potential large-magnitude explosive volcanic eruptions",
-            },
-            {
-                "id": "https://openalex.org/W2767096043",
-                "match_title": "Peer Review: Poland's Higher Education and Science System",
-            },
-            {
-                "id": "https://openalex.org/W2348907925",
-                "match_title": "In Conclusion: Doing more with Less",
-            },
-            {
-                "id": "https://openalex.org/W2506242984",
-                "match_title": "Beyond Movie Recommendations: Solving the Continuous Cold Start Problem in E-commerce Recommendations",
-            },
-            {
-                "id": "https://openalex.org/W2904520019",
-                "match_title": "CAPICE: childhood and adolescence psychopathology",
-            },
-            {
-                "id": "https://openalex.org/W2915822876",
-                "match_title": "Weighted Quasi Akash Distribution:",
-            },
-            {
-                "id": "https://openalex.org/W2971570088",
-                "match_title": "Social Inclusion Policies in Higher Education: Evidence from the EU",
-            },
-        ])
-
-        not_yet_found = not_yet_found.join(
-            match_titles, left_on="id", right_on="id", how="left"
+        match_titles = pl.DataFrame(
+            [
+                {
+                    "id": "https://openalex.org/W2753835807",
+                    "match_title": "Geographic variability of Twitter usage characteristics during disaster events : open access",
+                },
+                {
+                    "id": "https://openalex.org/W4410616102",
+                    "match_title": "On the thermal degradation of lubricant grease: Degradation analysis",
+                },
+                {
+                    "id": "https://openalex.org/W576524927",
+                    "match_title": "High-impact low-probability events: Exposure to potential large-magnitude explosive volcanic eruptions",
+                },
+                {
+                    "id": "https://openalex.org/W2767096043",
+                    "match_title": "Peer Review: Poland's Higher Education and Science System",
+                },
+                {
+                    "id": "https://openalex.org/W2348907925",
+                    "match_title": "In Conclusion: Doing more with Less",
+                },
+                {
+                    "id": "https://openalex.org/W2506242984",
+                    "match_title": "Beyond Movie Recommendations: Solving the Continuous Cold Start Problem in E-commerce Recommendations",
+                },
+                {
+                    "id": "https://openalex.org/W2904520019",
+                    "match_title": "CAPICE: childhood and adolescence psychopathology",
+                },
+                {
+                    "id": "https://openalex.org/W2915822876",
+                    "match_title": "Weighted Quasi Akash Distribution:",
+                },
+                {
+                    "id": "https://openalex.org/W2971570088",
+                    "match_title": "Social Inclusion Policies in Higher Education: Evidence from the EU",
+                },
+            ]
         )
+
+        not_yet_found = not_yet_found.join(match_titles, left_on="id", right_on="id", how="left")
 
         with_more_works = with_more_works.join(
             not_yet_found,
@@ -1702,36 +1622,40 @@ def _(get_openalex_works_by_title):
         )
 
         not_yet_found = not_yet_found.filter(
-            ~pl.col("id").is_in(
-                with_more_works.select("id_oa_extra_3").to_series().to_list()
-            )
+            ~pl.col("id").is_in(with_more_works.select("id_oa_extra_3").to_series().to_list())
         )
 
         print(f"{not_yet_found.height} unmerged left after merge 3")
 
         # now we coalesce the columns from the merging
         # if all went well, all _oa_extra_n cols should be mergable into empty cols without the suffix
-        with_more_works = with_more_works.drop([
-            x
-            for x in with_more_works.columns
-            if any([
-                "ratio" in x,
-                "inst_names" in x,
-                "search_title" in x,
-                "search_title_nosub" in x,
-                "match_title" in x,
-                "ut_found_in_oa" in x,
-            ])
-        ]).with_columns([
-            pl.col(col).list.eval(pl.element().struct.field("display_name")).alias(col)
-            for col in [
-                "funders_oa",
-                "funders_oa_extra",
-                "funders_oa_extra_2",
-                "funders_oa_extra_3",
+        with_more_works = with_more_works.drop(
+            [
+                x
+                for x in with_more_works.columns
+                if any(
+                    [
+                        "ratio" in x,
+                        "inst_names" in x,
+                        "search_title" in x,
+                        "search_title_nosub" in x,
+                        "match_title" in x,
+                        "ut_found_in_oa" in x,
+                    ]
+                )
             ]
-            if col in with_more_works.columns
-        ])
+        ).with_columns(
+            [
+                pl.col(col).list.eval(pl.element().struct.field("display_name")).alias(col)
+                for col in [
+                    "funders_oa",
+                    "funders_oa_extra",
+                    "funders_oa_extra_2",
+                    "funders_oa_extra_3",
+                ]
+                if col in with_more_works.columns
+            ]
+        )
 
         suffix_cols = [
             col
@@ -1743,12 +1667,14 @@ def _(get_openalex_works_by_title):
 
         base_col_names = [
             list(
-                set([
-                    col.rsplit("_oa_extra", 1)[0]
-                    .rsplit("_oa_extra_2", 1)[0]
-                    .rsplit("_oa_extra_3", 1)[0]
-                    for col in suffix_cols
-                ])
+                set(
+                    [
+                        col.rsplit("_oa_extra", 1)[0]
+                        .rsplit("_oa_extra_2", 1)[0]
+                        .rsplit("_oa_extra_3", 1)[0]
+                        for col in suffix_cols
+                    ]
+                )
             )
         ]
         base_col_names = [
@@ -1774,17 +1700,12 @@ def _(get_openalex_works_by_title):
             with_more_works.with_columns(
                 # replace empty strings with nulls
                 [
-                    pl.when(pl.col(col).eq(""))
-                    .then(pl.lit(None))
-                    .otherwise(pl.col(col))
-                    .alias(col)
+                    pl.when(pl.col(col).eq("")).then(pl.lit(None)).otherwise(pl.col(col)).alias(col)
                     for col in with_more_works.columns
                     if with_more_works[col].dtype == pl.Utf8
                 ]
             )
-            .with_columns([
-                pl.coalesce(*col_group).alias(col_group[0]) for col_group in col_groups
-            ])
+            .with_columns([pl.coalesce(*col_group).alias(col_group[0]) for col_group in col_groups])
             .drop(suffix_cols)
         )
 
@@ -1893,9 +1814,7 @@ def _():
         ]
 
         all_cols = list(merged_df.columns)
-        all_cols = [
-            x for x in all_cols if (x not in drop_cols) and (x not in first_cols)
-        ]
+        all_cols = [x for x in all_cols if (x not in drop_cols) and (x not in first_cols)]
         all_cols = first_cols + all_cols
         all_cols = [col for col in all_cols if col in merged_df.columns]
         merged_df = merged_df.select(all_cols)
@@ -1953,9 +1872,9 @@ def merge_oils_with_all(oils_df: pl.DataFrame, full_df: pl.DataFrame) -> pl.Data
     rename_dict = {k: v for k, v in rename_dict.items() if k in oils_df.columns}
 
     oils_df = oils_df.rename(rename_dict)
-    oils_df = oils_df.rename({
-        col: (col + "_oils").lower().replace(" ", "_") for col in oils_df.columns
-    })
+    oils_df = oils_df.rename(
+        {col: (col + "_oils").lower().replace(" ", "_") for col in oils_df.columns}
+    )
 
     merged_df = full_df.join(
         oils_df,
@@ -1996,24 +1915,23 @@ def extract_author_and_funder_names(df: pl.DataFrame) -> pl.DataFrame:
     extractions = []
     if "authorships" in df.columns:
         if df["authorships"].dtype == pl.Struct:
-            extractions.extend([
-                pl.col("authorships")
-                .list.eval(
-                    pl.element()
-                    .struct.field("author")
-                    .struct.field("display_name")
-                    .drop_nulls()
-                )
-                .alias("oa_authors_names"),
-                pl.col("authorships")
-                .list.eval(
-                    pl.element()
-                    .struct.field("author")
-                    .struct.field("orcid")
-                    .drop_nulls()
-                )
-                .alias("oa_authors_orcids"),
-            ])
+            extractions.extend(
+                [
+                    pl.col("authorships")
+                    .list.eval(
+                        pl.element()
+                        .struct.field("author")
+                        .struct.field("display_name")
+                        .drop_nulls()
+                    )
+                    .alias("oa_authors_names"),
+                    pl.col("authorships")
+                    .list.eval(
+                        pl.element().struct.field("author").struct.field("orcid").drop_nulls()
+                    )
+                    .alias("oa_authors_orcids"),
+                ]
+            )
     if "funders" in df.columns:
         if df["funders"].dtype == pl.Struct:
             extractions.append(
@@ -2124,30 +2042,34 @@ def add_missing_affils(
         suffix="_upd",
     )
     # append new unique values to list[str] cols
-    df = df.with_columns([
-        pl.when(pl.col(col + "_upd").is_not_null())
-        .then(pl.concat_list([pl.col(col), pl.col(col + "_upd")]).list.unique())
-        .otherwise(pl.col(col))
-        .alias(col)
-        for col in list_cols
-        if col + "_upd" in df.columns
-    ]).drop([name + "_upd" for name in list_cols if name + "_upd" in df.columns])
+    df = df.with_columns(
+        [
+            pl.when(pl.col(col + "_upd").is_not_null())
+            .then(pl.concat_list([pl.col(col), pl.col(col + "_upd")]).list.unique())
+            .otherwise(pl.col(col))
+            .alias(col)
+            for col in list_cols
+            if col + "_upd" in df.columns
+        ]
+    ).drop([name + "_upd" for name in list_cols if name + "_upd" in df.columns])
 
     # logical 'or' for bool cols
     bool_cols = ["tnw", "eemcs", "et", "bms", "itc", "dsi", "techmed", "mesa"]
-    df = df.with_columns([
-        pl.when(pl.col(col + "_upd").is_not_null())
-        .then(pl.col(col).or_(pl.col(col + "_upd")))
-        .otherwise(pl.col(col))
-        .alias(col)
-        for col in bool_cols
-        if col + "_upd" in df.columns
-    ]).drop([name + "_upd" for name in bool_cols if name + "_upd" in df.columns])
+    df = df.with_columns(
+        [
+            pl.when(pl.col(col + "_upd").is_not_null())
+            .then(pl.col(col).or_(pl.col(col + "_upd")))
+            .otherwise(pl.col(col))
+            .alias(col)
+            for col in bool_cols
+            if col + "_upd" in df.columns
+        ]
+    ).drop([name + "_upd" for name in bool_cols if name + "_upd" in df.columns])
 
     # now undo the explode to restore original structure
-    df = df.group_by([
-        col for col in df.columns if col not in ["pure_authors_names", "name"]
-    ]).agg(pl.col("pure_authors_names"))
+    df = df.group_by([col for col in df.columns if col not in ["pure_authors_names", "name"]]).agg(
+        pl.col("pure_authors_names")
+    )
     return df
 
 
@@ -2209,9 +2131,7 @@ def _(all_plus_oa_elsevier, faculty_cols, oils_plus_oa):
                 )
                 .group_by("faculty_combination")
                 .count()
-                .filter(
-                    pl.col("faculty_combination") != ""
-                )  # Remove rows with no faculty
+                .filter(pl.col("faculty_combination") != "")  # Remove rows with no faculty
                 .rename({"count": "publication_count"})
                 .sort("publication_count", descending=True)
             )
@@ -2241,9 +2161,7 @@ def _(all_plus_oa_elsevier, faculty_cols, oils_plus_oa):
                     color="white",
                     lineBreak="\n",
                 )
-                .encode(
-                    x="publication_year:O", y="max_bar_height:Q", text="label_text:N"
-                )
+                .encode(x="publication_year:O", y="max_bar_height:Q", text="label_text:N")
             )
             final_yearly_chart = (bar_chart + text_labels).properties(
                 title=yearly_chart_title, width=alt.Step(80)
@@ -2262,9 +2180,7 @@ def _(all_plus_oa_elsevier, faculty_cols, oils_plus_oa):
             total_bar_labels = total_bars.mark_text(
                 align="center", baseline="bottom", color="white"
             ).encode(text="publication_count:Q")
-            final_total_chart = (total_bars + total_bar_labels).properties(
-                title=total_chart_title
-            )
+            final_total_chart = (total_bars + total_bar_labels).properties(title=total_chart_title)
 
             overlap_chart_title = f"{name} - Faculty Combination Counts"
 
@@ -2272,9 +2188,7 @@ def _(all_plus_oa_elsevier, faculty_cols, oils_plus_oa):
                 alt.Chart(overlap_counts, width=700)
                 .mark_bar()
                 .encode(
-                    x=alt.X(
-                        "faculty_combination:N", title="Faculty Combination", sort="y"
-                    ),
+                    x=alt.X("faculty_combination:N", title="Faculty Combination", sort="y"),
                     y=alt.Y("publication_count:Q", title="Number of Publications"),
                     color=alt.Color("faculty_combination:N", title="Faculty Combo"),
                 )
@@ -2288,11 +2202,13 @@ def _(all_plus_oa_elsevier, faculty_cols, oils_plus_oa):
                 title=overlap_chart_title
             )
 
-            chart_rows.append([
-                mo.ui.altair_chart(final_yearly_chart),
-                mo.ui.altair_chart(final_total_chart),
-                mo.ui.altair_chart(final_overlap_chart),
-            ])
+            chart_rows.append(
+                [
+                    mo.ui.altair_chart(final_yearly_chart),
+                    mo.ui.altair_chart(final_total_chart),
+                    mo.ui.altair_chart(final_overlap_chart),
+                ]
+            )
 
         return chart_rows
 
@@ -2374,9 +2290,7 @@ def _(all_plus_oa_elsevier, oils_plus_oa):
                     color="white",
                     lineBreak="\n",
                 )
-                .encode(
-                    x="publication_year:O", y="max_bar_height:Q", text="label_text:N"
-                )
+                .encode(x="publication_year:O", y="max_bar_height:Q", text="label_text:N")
             )
 
             vertical_connector = (
@@ -2424,17 +2338,17 @@ def _(all_plus_oa_elsevier, oils_plus_oa):
                 color="white",
             ).encode(text="publication_count:Q")
 
-            final_total_chart = (total_bars + total_bar_labels).properties(
-                title=total_chart_title
-            )
+            final_total_chart = (total_bars + total_bar_labels).properties(title=total_chart_title)
 
             # --- Step 4: Combine the two charts side-by-side ---
 
             # Convert each to a marimo object and place them in a horizontal stack
-            combined_view = mo.hstack([
-                mo.ui.altair_chart(final_yearly_chart),
-                mo.ui.altair_chart(final_total_chart),
-            ])
+            combined_view = mo.hstack(
+                [
+                    mo.ui.altair_chart(final_yearly_chart),
+                    mo.ui.altair_chart(final_total_chart),
+                ]
+            )
             chart_pairs.append(combined_view)
         return chart_pairs
 
@@ -2449,27 +2363,29 @@ def drop_columns_that_are_all_null(_df: pl.DataFrame) -> pl.DataFrame:
 @app.cell(column=1, hide_code=True)
 def _():
     range_label = mo.md(f"Selected publication years: {filter_years.value}")
-    mo.vstack([
-        mo.md("""
+    mo.vstack(
+        [
+            mo.md("""
     # Data retrieval & processing settings
     The settings below control how the data retrieval and processing pipeline is executed. Check the boxes to enable the various steps, and use the filters to limit what data is processed. At the bottom you'll find file pickers to select files with data to load from Pure and OILS.
 
     Once ready, press the start button at the top to run the script, and view the output below!
             """),
-        start_button,
-        run_openalex_queries,
-        run_people_page_queries,
-        merge_with_oils,
-        use_titles,
-        verbose_people_page_retrieval,
-        filter_years,
-        range_label,
-        filter_faculty,
-        pub_path,
-        org_path,
-        pers_path,
-        oils_path,
-    ])
+            start_button,
+            run_openalex_queries,
+            run_people_page_queries,
+            merge_with_oils,
+            use_titles,
+            verbose_people_page_retrieval,
+            filter_years,
+            range_label,
+            filter_faculty,
+            pub_path,
+            org_path,
+            pers_path,
+            oils_path,
+        ]
+    )
 
 
 @app.cell
@@ -2539,14 +2455,14 @@ async def _():
         with Path("pure_data.pkl").open("rb") as f:
             pure_data = pickle.load(f)
     except Exception as e:
-        print(
-            f"Error loading pickle file: {e}\nRetrieving data from Pure API instead..."
+        print(f"Error loading pickle file: {e}\nRetrieving data from Pure API instead...")
+        pure_data = await retrieve_from_pure(
+            [
+                "openaire_cris_publications",
+                "openaire_cris_persons",
+                "openaire_cris_orgunits",
+            ]
         )
-        pure_data = await retrieve_from_pure([
-            "openaire_cris_publications",
-            "openaire_cris_persons",
-            "openaire_cris_orgunits",
-        ])
         # store as pickle
         with Path("pure_data.pkl").open("wb") as f:
             pickle.dump(pure_data, f)
@@ -2556,7 +2472,6 @@ async def _():
 
 @app.function
 async def retrieve_from_pure(selected_collections: list[str]) -> dict[str, list[dict]]:
-
     BASEURL = "https://ris.utwente.nl/ws/oai"
     SCHEMA = "oai_cerif_openaire"
 
@@ -2603,10 +2518,9 @@ async def retrieve_from_pure(selected_collections: list[str]) -> dict[str, list[
 
     results = defaultdict(list)
     async with httpx.AsyncClient(timeout=None) as client:
-        results = await asyncio.gather(*[
-            get_collection_data(collection, client)
-            for collection in selected_collections
-        ])
+        results = await asyncio.gather(
+            *[get_collection_data(collection, client) for collection in selected_collections]
+        )
 
     return results
 
@@ -2671,20 +2585,18 @@ def _():
             if not person_data:
                 continue
 
-            family_names, first_names = parse_person_name(
-                person_data.get("cerif:PersonName")
-            )
+            family_names, first_names = parse_person_name(person_data.get("cerif:PersonName"))
             affiliation_data = safe_get(item, ["cerif:Affiliation", "cerif:OrgUnit"])
 
-            parsed_list.append({
-                "person_id": get_id(person_data),
-                "family_names": family_names,
-                "first_names": first_names,
-                "affiliation_id": get_id(affiliation_data),
-                "affiliation_name": get_text(
-                    safe_get(affiliation_data, ["cerif:Name"])
-                ),
-            })
+            parsed_list.append(
+                {
+                    "person_id": get_id(person_data),
+                    "family_names": family_names,
+                    "first_names": first_names,
+                    "affiliation_id": get_id(affiliation_data),
+                    "affiliation_name": get_text(safe_get(affiliation_data, ["cerif:Name"])),
+                }
+            )
 
         return parsed_list if parsed_list else None
 
@@ -2735,16 +2647,10 @@ def _(ensure_list, get_id, get_text, parse_contributors, parse_enum, safe_get):
                 ensure_list(safe_get(pub, ["cerif:Editors", "cerif:Editor"]))
             ),
             "keywords": [
-                get_text(kw)
-                for kw in ensure_list(pub.get("cerif:Keyword"))
-                if get_text(kw)
+                get_text(kw) for kw in ensure_list(pub.get("cerif:Keyword")) if get_text(kw)
             ],
-            "isbn": [
-                get_text(i) for i in ensure_list(pub.get("cerif:ISBN")) if get_text(i)
-            ],
-            "issn": [
-                get_text(i) for i in ensure_list(pub.get("cerif:ISSN")) if get_text(i)
-            ],
+            "isbn": [get_text(i) for i in ensure_list(pub.get("cerif:ISBN")) if get_text(i)],
+            "issn": [get_text(i) for i in ensure_list(pub.get("cerif:ISSN")) if get_text(i)],
             # Linked entities (extracting ID and a descriptive name)
             "publisher_name": get_text(
                 safe_get(
@@ -2757,9 +2663,7 @@ def _(ensure_list, get_id, get_text, parse_contributors, parse_enum, safe_get):
                     ],
                 )
             ),
-            "published_in_id": get_id(
-                safe_get(pub, ["cerif:PublishedIn", "cerif:Publication"])
-            ),
+            "published_in_id": get_id(safe_get(pub, ["cerif:PublishedIn", "cerif:Publication"])),
             "published_in_title": get_text(
                 safe_get(pub, ["cerif:PublishedIn", "cerif:Publication", "cerif:Title"])
             ),
@@ -2797,9 +2701,7 @@ def _(get_id, get_text, parse_person_name, safe_get):
             "orcid": get_text(pers.get("cerif:ORCID")),
             "scopus_author_id": get_text(pers.get("cerif:ScopusAuthorID")),
             "researcher_id": get_text(pers.get("cerif:ResearcherID")),
-            "affiliation_id": get_id(
-                safe_get(pers, ["cerif:Affiliation", "cerif:OrgUnit"])
-            ),
+            "affiliation_id": get_id(safe_get(pers, ["cerif:Affiliation", "cerif:OrgUnit"])),
             "affiliation_name": get_text(
                 safe_get(pers, ["cerif:Affiliation", "cerif:OrgUnit", "cerif:Name"])
             ),
@@ -2854,8 +2756,7 @@ def _(pure_data):
                 result[k] = parse_dict(v)
             elif isinstance(v, list):
                 result[k] = [
-                    parse_dict(item) if isinstance(item, dict) else type(item)
-                    for item in v
+                    parse_dict(item) if isinstance(item, dict) else type(item) for item in v
                 ]
             else:
                 result[k] = type(v)
@@ -2867,10 +2768,7 @@ def _(pure_data):
             if isinstance(v, dict):
                 result[k] = parse_dict_val(v)
             elif isinstance(v, list):
-                result[k] = [
-                    parse_dict_val(item) if isinstance(item, dict) else item
-                    for item in v
-                ]
+                result[k] = [parse_dict_val(item) if isinstance(item, dict) else item for item in v]
             else:
                 result[k] = v
         return result
@@ -2982,11 +2880,7 @@ def _(
         print(keyset)
         print(valueset)
 
-    check_data(
-        zip(
-            ["pubs", "pers", "orgs"], [parsed_publications, parsed_persons, parsed_orgs]
-        )
-    )
+    check_data(zip(["pubs", "pers", "orgs"], [parsed_publications, parsed_persons, parsed_orgs]))
 
     df_publications = pl.DataFrame(parsed_publications, infer_schema_length=0)
     df_persons = pl.DataFrame(parsed_persons, infer_schema_length=0)

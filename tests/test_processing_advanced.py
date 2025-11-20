@@ -34,10 +34,12 @@ async def test_resolve_missing_ids_success():
 
 
 def test_deduplicate_by_doi_and_title():
-    df = pl.DataFrame({
-        "title": ["Same Title", "Same Title", "Other"],
-        "doi": ["https://doi.org/10.1/ABC", "https://doi.org/10.1/abc", None],
-    })
+    df = pl.DataFrame(
+        {
+            "title": ["Same Title", "Same Title", "Other"],
+            "doi": ["https://doi.org/10.1/ABC", "https://doi.org/10.1/abc", None],
+        }
+    )
     dedup = deduplicate(df, doi_col="doi", title_col="title")
     # unique DOIs collapsed to 1 row, plus the one without DOI
     assert dedup.height == 2

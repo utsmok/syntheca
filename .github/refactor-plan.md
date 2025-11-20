@@ -24,7 +24,7 @@ Completed? | Step | Module | Description |
 | YES | **2** | **Infrastructure** | ✓ Completed — Built `loguru` logging config, async file cache, and `BaseClient` with tenacity retries and httpx lifecycle handling. |
 | YES | **3** | **Clients** | ✓ Completed — Implemented `PureOAIClient`, `OpenAlexClient`, and `UTPeopleClient` including robust XML helpers, `dacite` typed parsing and chunked OpenAlex queries. Full legacy parsing (publication/person/org parsing and OpenAlex cleaning) was ported from the monolith. |
 | YES | **4** | **Processing** | ✓ Completed — added `cleaning`, `matching` (incl. resolve_missing_ids), `enrichment`, and `merging` (incl. deduplicate). Further refinements for scoring and enrichment are planned. |
-| NO  | **5** | **Reporting & Pipeline** | Create the Export module (Excel/Parquet) and the main Async Orchestrator (`pipeline.py`). |
+| YES | **5** | **Reporting & Pipeline** | ✓ Completed — Added `reporting/export.py` and a basic async `Pipeline` orchestrator. The pipeline supports DataFrame inputs for testability and optional client-based ingestion (Pure OAI, OpenAlex, UT People). |
 | NO  | **6** | **Frontend** | Create the clean `app.py` Marimo notebook that serves as the UI. |
 
 ---
