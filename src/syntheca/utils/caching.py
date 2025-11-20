@@ -65,8 +65,12 @@ def file_cache(prefix: str | None = None):
             key = _make_key(func.__qualname__, args, kwargs)
             filename = cache_dir / f"{prefix or func.__name__}_{key}.pkl"
             if filename.exists():
-                with pathlib.Path(filename).open("rb") as fh:
-                    return pickle.load(fh)
+                try:
+                    with pathlib.Path(filename).open("rb") as fh:
+                        return pickle.load(fh)
+                except (Exception, AttributeError):
+                    # Cache invalid or schema changed; ignore and re-compute
+                    pass
             result = func(*args, **kwargs)
             with pathlib.Path(filename).open("wb") as fh:
                 pickle.dump(result, fh)
@@ -87,8 +91,12 @@ def file_cache(prefix: str | None = None):
             key = _make_key(func.__qualname__, args, kwargs)
             filename = cache_dir / f"{prefix or func.__name__}_{key}.pkl"
             if filename.exists():
-                with pathlib.Path(filename).open("rb") as fh:
-                    return pickle.load(fh)
+                try:
+                    with pathlib.Path(filename).open("rb") as fh:
+                        return pickle.load(fh)
+                except (Exception, AttributeError):
+                    # Cache invalid or schema changed; ignore and re-compute
+                    pass
             result = await func(*args, **kwargs)
             # Ensure parent exists
             filename.parent.mkdir(parents=True, exist_ok=True)

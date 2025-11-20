@@ -89,12 +89,17 @@ class Pipeline:
         if oils_df is None and full_df is None and pure_client is None and openalex_client is None:
             raise ValueError("At least one of oils_df or full_df must be provided")
 
-        # Clean publications
+        # Clean publications with defensive empty handling
         if oils_df is None and pure_client is not None:
             # Run a minimal ingestion of 'publications' collection
             raw = await pure_client.get_all_records(["publications"])
             oils_df = pl.from_dicts(raw.get("publications", []))
-        oils_clean = cleaning.clean_publications(oils_df) if oils_df is not None else pl.DataFrame()
+        
+        oils_clean = (
+            cleaning.clean_publications(oils_df)
+            if oils_df is not None and not oils_df.is_empty()
+            else pl.DataFrame(schema={"doi": pl.Utf8, "title": pl.Utf8, "pure_id": pl.Utf8})
+        )
         if settings.persist_intermediate and oils_clean is not None and oils_clean.height:
             try:
                 from syntheca.utils.persistence import save_dataframe_parquet
@@ -125,7 +130,11 @@ class Pipeline:
                     )
             full_df = pl.from_dicts(rows) if rows else pl.DataFrame()
 
-        full_clean = cleaning.clean_publications(full_df) if full_df is not None else pl.DataFrame()
+        full_clean = (
+            cleaning.clean_publications(full_df)
+            if full_df is not None and not full_df.is_empty()
+            else pl.DataFrame(schema={"doi": pl.Utf8, "title": pl.Utf8, "pure_id": pl.Utf8})
+        )
         if settings.persist_intermediate and full_clean is not None and full_clean.height:
             try:
                 from syntheca.utils.persistence import save_dataframe_parquet
@@ -133,6 +142,12 @@ class Pipeline:
                 save_dataframe_parquet(full_clean, "full_clean")
             except Exception:
                 pass
+
+        # Extract author and funder names from nested structures (New Step)
+        if oils_clean.height > 0:
+            oils_clean = merging.extract_author_and_funder_names(oils_clean)
+        if full_clean.height > 0:
+            full_clean = merging.extract_author_and_funder_names(full_clean)
 
         # Enrich authors
         # Build or append people_search_names by extracting names from `authors_df` when available.
@@ -197,21 +212,36 @@ class Pipeline:
                     continue
             authors_df = pl.from_dicts(candidates) if candidates else pl.DataFrame()
 
-        if authors_df is not None:
-            _authors_enriched = enrichment.enrich_authors_with_faculties(authors_df)
+        if authors_df is not None and authors_df.height > 0:
+            # Enrich authors with faculty mappings
+            authors_enriched = enrichment.enrich_authors_with_faculties(authors_df)
+            
+            # Apply manual affiliation corrections (New Step)
+            authors_enriched = merging.add_missing_affils(authors_enriched)
+            
+            # Join authors back to publications (New Step)
+            if oils_clean.height > 0:
+                oils_clean = enrichment.join_authors_and_publications(authors_enriched, oils_clean)
+            if full_clean.height > 0:
+                full_clean = enrichment.join_authors_and_publications(authors_enriched, full_clean)
+            
             if settings.persist_intermediate:
                 try:
                     from syntheca.utils.persistence import save_dataframe_parquet
 
-                    save_dataframe_parquet(authors_df, "authors_enriched")
+                    save_dataframe_parquet(authors_enriched, "authors_enriched")
                 except Exception:
                     pass
 
-        if not full_clean.height:
-            # Nothing to merge; return oils_clean
-            merged = oils_clean
+        # Merge datasets using appropriate merge strategy
+        if full_clean.height > 0:
+            if oils_clean.height > 0:
+                # Use the OILS specialized merge when we have both datasets
+                merged = merging.merge_oils_with_all(oils_clean, full_clean)
+            else:
+                merged = full_clean
         else:
-            merged = merging.merge_datasets(oils_clean, full_clean)
+            merged = oils_clean
 
         # Deduplicate final set
         merged_final = merging.deduplicate(merged)

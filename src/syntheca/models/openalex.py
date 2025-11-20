@@ -556,8 +556,6 @@ class HasContent:
 class Keyword(BaseOpenAlex):
     """Keyword entity with minimal OpenAlex metadata."""
 
-    """Keyword entity containing minimal base metadata."""
-
 
 @dataclass
 class Topic(BaseOpenAlex):

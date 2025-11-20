@@ -382,15 +382,6 @@ class PureOAIClient(BaseClient):
             url = f"{self.BASEURL}?verb=ListRecords&metadataPrefix={self.SCHEMA}&set={collection}"
             resume_url = url.split("&metadataPrefix", maxsplit=1)[0]
 
-            """Fetch a single OAI collection resumption loop and return records.
-
-            Args:
-                collection (str): The collection key to fetch.
-                position (int | None): Optional tqdm `position` for progress bar.
-
-            Returns:
-                dict[str, list[dict]]: Mapping of the collection to the list of parsed records.
-            """
             col_records: list[dict] = []
             bar = None
             if settings.enable_progress:

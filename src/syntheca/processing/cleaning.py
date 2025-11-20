@@ -87,6 +87,18 @@ def clean_publications(df: pl.DataFrame) -> pl.DataFrame:
         pl.DataFrame: A cleaned DataFrame matching monolith transformations.
 
     """
+    # Handle empty or None input defensively
+    if df is None or df.is_empty():
+        # Return empty DF with minimal expected schema to prevent join errors
+        return pl.DataFrame(
+            schema={
+                "doi": pl.Utf8,
+                "title": pl.Utf8,
+                "pure_id": pl.Utf8,
+                "publication_year": pl.Int64,
+            }
+        )
+
     out = df.clone()
 
     # Filter out rows without DOIs (matching monolith)
