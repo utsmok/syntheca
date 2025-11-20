@@ -15,9 +15,9 @@ from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
-from syntheca.utils.persistence import load_dataframe_parquet
-from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
 from syntheca.utils.progress import get_next_position
+
 
 class PureOAIClient(BaseClient):
     """Client for retrieving OAI-PMH records from Pure / OAI endpoints.
@@ -212,6 +212,7 @@ class PureOAIClient(BaseClient):
 
         Returns:
             list[dict] | None: List of parsed medium dicts or None when empty.
+
         """
         if not file_locations:
             return []
@@ -238,6 +239,7 @@ class PureOAIClient(BaseClient):
 
         Returns:
             list[dict] | None: List of referenced publication dictionaries.
+
         """
         if not refs:
             return []

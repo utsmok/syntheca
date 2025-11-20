@@ -18,7 +18,7 @@ from tqdm import tqdm
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
 from syntheca.models.openalex import Work, production_config
-from syntheca.utils.persistence import save_dataframe_parquet, load_dataframe_parquet
+from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
 from syntheca.utils.progress import get_next_position
 
 

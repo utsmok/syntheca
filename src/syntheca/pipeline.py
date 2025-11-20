@@ -136,10 +136,10 @@ class Pipeline:
 
         # Enrich authors
         # Build or append people_search_names by extracting names from `authors_df` when available.
-        UT_AFFIL_ID = "491145c6-1c9b-4338-aedd-98315c166d7e"
+        ut_affil_id = "491145c6-1c9b-4338-aedd-98315c166d7e"
         print(authors_df)
         if authors_df is not None:
-            print(f'checking for people search names from authors_df')
+            print('checking for people search names from authors_df')
             try:
                 df_persons = authors_df
                 # Try to filter to UT authors if possible
@@ -147,7 +147,7 @@ class Pipeline:
                     df_persons = df_persons.filter(pl.col("is_ut"))
                 elif "affiliation_ids_pure" in df_persons.columns:
                     try:
-                        df_persons = df_persons.filter(pl.col("affiliation_ids_pure").list.contains(UT_AFFIL_ID))
+                        df_persons = df_persons.filter(pl.col("affiliation_ids_pure").list.contains(ut_affil_id))
                     except Exception:
                         # could be missing or different format; skip filtering
                         df_persons = authors_df

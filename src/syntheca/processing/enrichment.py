@@ -113,14 +113,27 @@ def clean_and_enrich_persons_data(
     if "affiliations" not in person_data.columns:
         return person_data
 
+    # Check if there are any non-null affiliations
+    has_affiliations = person_data.select(
+        pl.col("affiliations").is_not_null().any()
+    ).to_series()[0]
+
+    if not has_affiliations:
+        # No affiliations to process, return early
+        return person_data
+
     # Extract unique affiliations
-    found_unique_affils = (
-        person_data.filter(pl.col("affiliations").is_not_null())
-        .select("affiliations")
-        .explode("affiliations")
-        .unnest("affiliations")
-        .unique(["name", "internal_repository_id"])
-    )
+    try:
+        found_unique_affils = (
+            person_data.filter(pl.col("affiliations").is_not_null())
+            .select("affiliations")
+            .explode("affiliations")
+            .unnest("affiliations")
+            .unique(["name", "internal_repository_id"])
+        )
+    except Exception:
+        # If unnesting fails, skip affiliation enrichment
+        return person_data
 
     # Clean organization data
     if "part_of" in org_data.columns:
@@ -240,3 +253,93 @@ def enrich_authors_with_faculties(authors_df: pl.DataFrame) -> pl.DataFrame:
         exprs.append(pl.col("affiliation_names_pure").list.contains(full_name).alias(short))
 
     return authors_df.with_columns(exprs)
+
+
+def join_authors_and_publications(
+    authors_df: pl.DataFrame,
+    publications_df: pl.DataFrame,
+) -> pl.DataFrame:
+    """Join authors and publications to add faculty/institute/group affiliations.
+
+    Replicates the monolith's join_authors_and_publications logic:
+    - Extract author IDs from publications
+    - Join with enriched person data
+    - Aggregate faculty flags (any author in faculty = True)
+    - Aggregate affiliation lists (unique values across all authors)
+    - Collect ORCIDs
+
+    Args:
+        authors_df (pl.DataFrame): Enriched person data from clean_and_enrich_persons_data.
+        publications_df (pl.DataFrame): Cleaned publications data.
+
+    Returns:
+        pl.DataFrame: Publications DataFrame enriched with author affiliation data.
+
+    """
+    # Ensure authors_df has pure_id column
+    if "internal_repository_id" in authors_df.columns and "pure_id" not in authors_df.columns:
+        authors_df = authors_df.rename({"internal_repository_id": "pure_id"})
+
+    # Extract author IDs from publications (if authors column exists)
+    if "authors" not in publications_df.columns:
+        return publications_df
+
+    pubs_with_author_ids = publications_df.with_columns(
+        pl.col("authors")
+        .list.eval(pl.element().struct.field("internal_repository_id"))
+        .list.drop_nulls()
+        .alias("author_pure_ids")
+    )
+
+    # Explode to get one row per author per publication
+    exploded_pubs = pubs_with_author_ids.select(["pure_id", "author_pure_ids"]).explode(
+        "author_pure_ids"
+    )
+
+    # Join with author details
+    author_details = exploded_pubs.join(
+        authors_df, left_on="author_pure_ids", right_on="pure_id", how="left"
+    )
+
+    # Set up aggregation expressions
+    merge_cols_bool = ["dsi", "mesa", "techmed", "eemcs", "et", "bms", "tnw", "itc"]
+    merge_cols_lists = [
+        "faculty", "institute", "department", "group",
+        "faculty_abbr", "department_abbr", "group_abbr",
+    ]
+    merge_cols_str = ["orcid"]
+
+    # Bools: any author with True = True for publication
+    agg_exprs = [
+        pl.col(col).any().alias(col)
+        for col in merge_cols_bool
+        if col in author_details.columns
+    ]
+
+    # Lists: flatten all lists, get unique values
+    agg_exprs.extend([
+        pl.col(col)
+        .str.split(by="; ")
+        .flatten()
+        .unique()
+        .replace("", None)
+        .drop_nulls()
+        .alias(col)
+        for col in merge_cols_lists
+        if col in author_details.columns
+    ])
+
+    # Strings: collect unique non-null values into list
+    agg_exprs.extend([
+        pl.col(col).drop_nulls().unique().alias(col + "s")
+        for col in merge_cols_str
+        if col in author_details.columns
+    ])
+
+    # Group by publication pure_id and aggregate
+    merged_author_data = author_details.group_by("pure_id").agg(agg_exprs)
+
+    # Join back to publications
+    final_df = publications_df.join(merged_author_data, on="pure_id", how="left")
+
+    return final_df
