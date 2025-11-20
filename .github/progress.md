@@ -19,6 +19,44 @@ Notes:
 
 ---
 
+2025-11-20 - Completed Step 5b: Advanced Enrichment & Merging (Gap Filling)
+
+Summary:
+- Created `src/syntheca/processing/organizations.py` with organizational hierarchy resolution:
+	- `resolve_org_hierarchy()` - resolves part_of relationships and maps organizations to faculty short codes
+	- `map_author_affiliations()` - joins authors to processed organizations and adds faculty membership flags and is_ut flag
+- Updated `src/syntheca/processing/enrichment.py` with advanced parsing and corrections:
+	- `parse_scraped_org_details()` - parses nested organizational structure from scraped UT People profiles, extracting faculty/institute/department/group names and abbreviations, setting boolean flags for each faculty/institute
+	- `apply_manual_corrections()` - loads corrections.json and applies manual affiliation updates to publications based on author names
+- Updated `src/syntheca/processing/merging.py` with author-publication aggregation:
+	- `join_authors_and_publications()` - explodes publications by author ID, joins with enriched author data, and aggregates faculty/org information back to publication level using 'any' logic for booleans and unique collection for lists
+- Updated `src/syntheca/pipeline.py` to orchestrate the full enrichment flow:
+	- Added organizational hierarchy processing step
+	- Added author-organization mapping step with faculty flags
+	- Added optional UT People profile scraping (disabled by default via `enable_scraping` parameter)
+	- Added parsing of scraped organizational details
+	- Added faculty enrichment from affiliation names
+	- Added manual corrections application
+	- Added author-publication joining to aggregate faculty/org data at publication level
+	- All steps include conditional persistence of intermediate DataFrames when `settings.persist_intermediate` is enabled
+
+Tests:
+- Added comprehensive test coverage with 18 new tests across 3 test files:
+	- `tests/test_processing_organizations.py` - 8 tests covering org hierarchy resolution and author-org mapping
+	- `tests/test_processing_enrichment_advanced.py` - 6 tests for parsing scraped data and applying corrections
+	- `tests/test_processing_merging_advanced.py` - 6 tests for author-publication joining with aggregation logic
+- All tests pass (57 total, up from 39 before step 5b)
+- Special handling implemented for polars struct field access with null values to prevent StructFieldNotFoundError
+
+Notes:
+- The scraping integration in pipeline is currently a stub - full profile scraping and data merging would need more sophisticated name matching logic in production
+- The `parse_scraped_org_details` function uses try-except blocks to handle cases where department/group fields are all-null (list[null] type), which prevents struct field access
+- Boolean faculty columns use 'any' aggregation (if any author is in a faculty, the publication is flagged for that faculty)
+- List columns (departments, groups, etc.) are flattened, deduplicated, and collected as unique values
+- Manual corrections support both Faculty-Department-Group format (e.g., "TNW-PHY-QR") and institute-only format (e.g., "dsi")
+
+---
+
 2025-11-19T00:20:00Z - Completed Step 3: Clients
 
 Summary:

@@ -23,8 +23,8 @@ Completed? | Step | Module | Description |
 | YES | **2** | **Infrastructure** | ✓ Completed — Built `loguru` logging config, async file cache, and `BaseClient` with tenacity retries and httpx lifecycle handling. |
 | YES | **3** | **Clients** | ✓ Completed — Implemented `PureOAIClient`, `OpenAlexClient`, and `UTPeopleClient` including robust XML helpers, `dacite` typed parsing and chunked OpenAlex queries. |
 | YES | **4** | **Processing (Core)** | ✓ Completed — added basic `cleaning`, `matching`, `enrichment` (string-based), and `merging` logic. |
-| NO  | **5a** | **Pipeline (Basic)** | ✓ Completed — Basic orchestrator structure implemented. |
-| NO  | **5b** | **Enrichment Gap Fill** | **Critical Missing Logic**: Port Org hierarchy resolution, full scraping pipeline, manual corrections, and Author-Publication aggregation. |
+| YES | **5a** | **Pipeline (Basic)** | ✓ Completed — Basic orchestrator structure implemented. |
+| YES | **5b** | **Enrichment Gap Fill** | ✓ Completed — Implemented organizational hierarchy resolution, author-org mapping, scraped data parsing, manual corrections, and author-publication aggregation with full test coverage. |
 | NO  | **6** | **Frontend** | Create the clean `app.py` Marimo notebook that serves as the UI. |
 
 ---

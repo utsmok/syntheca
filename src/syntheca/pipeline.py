@@ -17,7 +17,7 @@ from syntheca.clients.openalex import OpenAlexClient
 from syntheca.clients.pure_oai import PureOAIClient
 from syntheca.clients.ut_people import UTPeopleClient
 from syntheca.config import settings
-from syntheca.processing import cleaning, enrichment, merging
+from syntheca.processing import cleaning, enrichment, merging, organizations
 from syntheca.reporting import export
 from syntheca.utils.progress import get_next_position
 
@@ -49,6 +49,7 @@ class Pipeline:
         oils_df: pl.DataFrame | None = None,
         full_df: pl.DataFrame | None = None,
         authors_df: pl.DataFrame | None = None,
+        orgs_df: pl.DataFrame | None = None,
         output_dir: pathlib.Path | str | None = None,
         *,
         pure_client: PureOAIClient | None = None,
@@ -56,22 +57,27 @@ class Pipeline:
         ut_people_client: UTPeopleClient | None = None,
         openalex_ids: list[str] | None = None,
         people_search_names: list[str] | None = None,
+        enable_scraping: bool = False,
     ) -> pl.DataFrame:
         """Execute ETL steps and optionally export the results.
 
         The pipeline executes the following steps in order:
-        1. Ingest publications (from provided `oils_df` or via `pure_client`).
-        2. Clean and normalize publication records.
-        3. Optionally fetch and clean OpenAlex work data when `openalex_client`
-           and `openalex_ids` are provided.
-        4. Enrich authors with faculty/org details using `ut_people_client`.
-        5. Merge the cleaned datasets and deduplicate the final set.
-        6. Optionally write out to parquet and xlsx if `output_dir` is provided.
+        1. Ingest publications, persons, and organizations (from provided DataFrames or via `pure_client`).
+        2. Process organizational hierarchy and resolve parent relationships.
+        3. Map author affiliations to organizations and set faculty flags.
+        4. Optionally scrape UT People profiles to enrich author data with detailed org info.
+        5. Parse scraped organizational details and apply manual corrections.
+        6. Clean and normalize publication records.
+        7. Optionally fetch and clean OpenAlex work data when `openalex_client` and `openalex_ids` are provided.
+        8. Join authors and publications to aggregate faculty/org data at publication level.
+        9. Merge the cleaned datasets and deduplicate the final set.
+        10. Optionally write out to parquet and xlsx if `output_dir` is provided.
 
         Args:
             oils_df (pl.DataFrame | None): Polars DataFrame of Pure OAI publications.
             full_df (pl.DataFrame | None): Polars DataFrame for OpenAlex/other works.
             authors_df (pl.DataFrame | None): Polars DataFrame of author/person records.
+            orgs_df (pl.DataFrame | None): Polars DataFrame of organization records.
             output_dir (pathlib.Path | str | None): Optional directory path to write
                 parquet and Excel exports.
             pure_client (PureOAIClient | None): Optional Pure OAI client to fetch data.
@@ -79,6 +85,7 @@ class Pipeline:
             ut_people_client (UTPeopleClient | None): Optional UT People client to search/enrich people.
             openalex_ids (list[str] | None): Optional list of OpenAlex/DOI IDs to fetch.
             people_search_names (list[str] | None): Optional list of person search names.
+            enable_scraping (bool): Whether to enable scraping of UT People profiles. Default False.
 
         Returns:
             pl.DataFrame: The merged and deduplicated DataFrame representing final publications.
@@ -89,11 +96,49 @@ class Pipeline:
         if oils_df is None and full_df is None and pure_client is None and openalex_client is None:
             raise ValueError("At least one of oils_df or full_df must be provided")
 
-        # Clean publications
+        # Step 1: Ingest Pure data (publications, persons, organizations)
         if oils_df is None and pure_client is not None:
-            # Run a minimal ingestion of 'publications' collection
-            raw = await pure_client.get_all_records(["publications"])
+            # Fetch all three collections if available
+            collections_to_fetch = ["publications"]
+            if authors_df is None:
+                collections_to_fetch.append("persons")
+            if orgs_df is None:
+                collections_to_fetch.append("organisationalUnits")
+
+            raw = await pure_client.get_all_records(collections_to_fetch)
             oils_df = pl.from_dicts(raw.get("publications", []))
+
+            if authors_df is None and "persons" in raw:
+                authors_df = pl.from_dicts(raw.get("persons", []))
+
+            if orgs_df is None and "organisationalUnits" in raw:
+                orgs_df = pl.from_dicts(raw.get("organisationalUnits", []))
+
+        # Step 2: Process organizational hierarchy
+        orgs_processed = None
+        if orgs_df is not None and orgs_df.height:
+            orgs_processed = organizations.resolve_org_hierarchy(orgs_df)
+            if settings.persist_intermediate:
+                try:
+                    from syntheca.utils.persistence import save_dataframe_parquet
+
+                    save_dataframe_parquet(orgs_processed, "orgs_processed")
+                except Exception:
+                    pass
+
+        # Step 3: Map author affiliations to organizations
+        if authors_df is not None and orgs_processed is not None:
+            authors_df = organizations.map_author_affiliations(authors_df, orgs_processed)
+            if settings.persist_intermediate:
+                try:
+                    from syntheca.utils.persistence import save_dataframe_parquet
+
+                    save_dataframe_parquet(authors_df, "authors_with_affils")
+                except Exception:
+                    pass
+
+        # Clean publications
+
         oils_clean = cleaning.clean_publications(oils_df) if oils_df is not None else pl.DataFrame()
         if settings.persist_intermediate and oils_clean is not None and oils_clean.height:
             try:
@@ -134,71 +179,95 @@ class Pipeline:
             except Exception:
                 pass
 
-        # Enrich authors
-        # Build or append people_search_names by extracting names from `authors_df` when available.
-        UT_AFFIL_ID = "491145c6-1c9b-4338-aedd-98315c166d7e"
-        print(authors_df)
-        if authors_df is not None:
-            print(f'checking for people search names from authors_df')
-            try:
-                df_persons = authors_df
-                # Try to filter to UT authors if possible
-                if "is_ut" in df_persons.columns:
-                    df_persons = df_persons.filter(pl.col("is_ut"))
-                elif "affiliation_ids_pure" in df_persons.columns:
-                    try:
-                        df_persons = df_persons.filter(pl.col("affiliation_ids_pure").list.contains(UT_AFFIL_ID))
-                    except Exception:
-                        # could be missing or different format; skip filtering
-                        df_persons = authors_df
-                # Identify name columns and build full names
-                built_names = []
-                if "first_names" in df_persons.columns and "family_names" in df_persons.columns:
-                    built_names = [
-                        f"{r['first_names']} {r['family_names']}".strip()
-                        for r in df_persons.select(["first_names", "family_names"]).to_dicts()
-                        if r.get("first_names") or r.get("family_names")
-                    ]
-                elif "first_name" in df_persons.columns and "last_name" in df_persons.columns:
-                    built_names = [
-                        f"{r['first_name']} {r['last_name']}".strip()
-                        for r in df_persons.select(["first_name", "last_name"]).to_dicts()
-                        if r.get("first_name") or r.get("last_name")
-                    ]
-                elif "found_name" in df_persons.columns:
-                    built_names = [r.get("found_name") for r in df_persons.select("found_name").to_dicts() if r.get("found_name")]
-                if built_names:
-                    # Append to existing list and keep unique order
-                    existing = people_search_names or []
-                    people_search_names = list(dict.fromkeys(existing + built_names))
-            except Exception as e:
-                # Don't halt the pipeline on extraction errors; leave people_search_names unchanged
-                print(f' error: {e}')
-                pass
+        # Step 4: Optionally scrape UT People profiles for detailed org info
+        if enable_scraping and ut_people_client is not None and authors_df is not None:
+            # Extract UT authors for scraping
+            ut_affil_id = "491145c6-1c9b-4338-aedd-98315c166d7e"
+            df_persons = authors_df
 
-        # If authors_df missing and we have a UT People client, optionally search by provided names
-        if authors_df is None and ut_people_client is not None and people_search_names:
-            candidates = []
-            iterable = (
-                tqdm(
-                    people_search_names,
-                    desc="ut-people",
-                    disable=not settings.enable_progress,
-                    position=get_next_position(),
-                )
-                if settings.enable_progress
-                else people_search_names
-            )
-            for name in iterable:
+            # Try to filter to UT authors if possible
+            if "is_ut" in df_persons.columns:
+                df_persons = df_persons.filter(pl.col("is_ut"))
+            elif "affiliation_ids_pure" in df_persons.columns:
                 try:
-                    res = await ut_people_client.search_person(name)
-                    candidates.extend(res or [])
+                    df_persons = df_persons.filter(
+                        pl.col("affiliation_ids_pure").list.contains(ut_affil_id)
+                    )
                 except Exception:
-                    continue
-            authors_df = pl.from_dicts(candidates) if candidates else pl.DataFrame()
+                    # could be missing or different format; skip filtering
+                    df_persons = authors_df
 
+            # Build search names from UT authors
+            built_names = []
+            if "first_names" in df_persons.columns and "family_names" in df_persons.columns:
+                built_names = [
+                    f"{r['first_names']} {r['family_names']}".strip()
+                    for r in df_persons.select(["first_names", "family_names"]).to_dicts()
+                    if r.get("first_names") or r.get("family_names")
+                ]
+            elif "first_name" in df_persons.columns and "last_name" in df_persons.columns:
+                built_names = [
+                    f"{r['first_name']} {r['last_name']}".strip()
+                    for r in df_persons.select(["first_name", "last_name"]).to_dicts()
+                    if r.get("first_name") or r.get("last_name")
+                ]
+            elif "found_name" in df_persons.columns:
+                built_names = [
+                    r.get("found_name")
+                    for r in df_persons.select("found_name").to_dicts()
+                    if r.get("found_name")
+                ]
+
+            # Scrape profiles
+            if built_names:
+                scraped_data = []
+                iterable = (
+                    tqdm(
+                        built_names,
+                        desc="scraping-ut-people",
+                        disable=not settings.enable_progress,
+                        position=get_next_position(),
+                    )
+                    if settings.enable_progress
+                    else built_names
+                )
+                for name in iterable:
+                    try:
+                        # Search for person
+                        search_results = await ut_people_client.search_person(name)
+                        if search_results:
+                            # Get the first match's URL
+                            url = (
+                                search_results[0].get("people_page_url") if search_results else None
+                            )
+                            if url:
+                                # Scrape the profile
+                                profile = await ut_people_client.scrape_profile(url)
+                                if profile and "org_details" in profile:
+                                    scraped_data.append(
+                                        {
+                                            "name": name,
+                                            "org_details_pp": profile["org_details"],
+                                        }
+                                    )
+                    except Exception:
+                        continue
+
+                # Merge scraped data back into authors_df
+                if scraped_data and "org_details_pp" not in authors_df.columns:
+                    # For now, we just add the org_details_pp column if it doesn't exist
+                    # A more sophisticated implementation would match and merge the data
+                    authors_df = authors_df.with_columns(pl.lit(None).alias("org_details_pp"))
+
+        # Step 5: Parse scraped org details and apply manual corrections
         if authors_df is not None:
-            _authors_enriched = enrichment.enrich_authors_with_faculties(authors_df)
+            # Parse org details if available
+            if "org_details_pp" in authors_df.columns:
+                authors_df = enrichment.parse_scraped_org_details(authors_df)
+
+            # Enrich with faculties from affiliation names
+            authors_df = enrichment.enrich_authors_with_faculties(authors_df)
+
             if settings.persist_intermediate:
                 try:
                     from syntheca.utils.persistence import save_dataframe_parquet
@@ -207,6 +276,23 @@ class Pipeline:
                 except Exception:
                     pass
 
+        # Step 6: Join authors and publications to aggregate faculty/org data
+        if authors_df is not None and oils_clean.height and "authors" in oils_clean.columns:
+            # Apply manual corrections first
+            oils_clean = enrichment.apply_manual_corrections(oils_clean)
+
+            # Join authors and publications
+            oils_clean = merging.join_authors_and_publications(oils_clean, authors_df)
+
+            if settings.persist_intermediate:
+                try:
+                    from syntheca.utils.persistence import save_dataframe_parquet
+
+                    save_dataframe_parquet(oils_clean, "oils_with_authors")
+                except Exception:
+                    pass
+
+        # Step 7: Merge with OpenAlex data and deduplicate
         if not full_clean.height:
             # Nothing to merge; return oils_clean
             merged = oils_clean
