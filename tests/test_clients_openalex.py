@@ -2,6 +2,8 @@ import pytest
 from httpx import MockTransport, Response
 
 from syntheca.clients.openalex import OpenAlexClient
+from syntheca.config import settings
+from syntheca.utils.persistence import load_dataframe_parquet
 
 
 @pytest.mark.asyncio
@@ -26,6 +28,38 @@ async def test_get_works_by_ids_parses(monkeypatch):
 
     works = await client.get_works_by_ids(["10.123/test"])
     assert len(works) >= 0
+
+
+@pytest.mark.asyncio
+async def test_get_works_by_ids_persistent_cache(tmp_path: pathlib.Path):
+    old_cache = settings.cache_dir
+    settings.cache_dir = tmp_path
+    settings.persist_intermediate = True
+
+    sample = {
+        "results": [
+            {
+                "id": "https://openalex.org/W1",
+                "display_name": "Test Work",
+                "doi": "10.123/test",
+            }
+        ]
+    }
+
+    async def handler(request):
+        return Response(200, json=sample)
+
+    transport = MockTransport(handler)
+    client = OpenAlexClient()
+    client.client = client.client.__class__(transport=transport)
+
+    works = await client.get_works_by_ids(["10.123/test"])
+    # verify file exists
+    df = load_dataframe_parquet("openalex_works")
+    assert df is not None
+
+    settings.persist_intermediate = False
+    settings.cache_dir = old_cache
 
 
 @pytest.mark.asyncio

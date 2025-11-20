@@ -32,6 +32,6 @@ def write_formatted_excel(df: pl.DataFrame, path: str | pathlib.Path) -> pathlib
     # Use polars native write_excel with some default formatting.
     # Build column widths using an autofit approach; polars supports `autofit=True`
     # so we rely on that behaviour, and provide a dtype_formats for dates.
-    dtype_formats: dict[Any, str] = {pl.Date: "yyyy-mm-dd"}
+    dtype_formats: dict[Any, str] = {pl.Date: "YYYY-MM-DD"}
     df.write_excel(str(p), worksheet="data", autofit=True, dtype_formats=dtype_formats)
     return p

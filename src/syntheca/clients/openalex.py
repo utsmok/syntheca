@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from collections.abc import Iterable
 from urllib.parse import quote
 
+import polars as pl
 from dacite import from_dict
+from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
 from syntheca.models.openalex import Work, production_config
+from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.progress import get_next_position
 
 
 class OpenAlexClient(BaseClient):
@@ -23,9 +28,14 @@ class OpenAlexClient(BaseClient):
         for i in range(0, len(it), size):
             yield it[i : i + size]
 
-    async def get_works_by_ids(self, ids: list[str], id_type: str = "doi") -> list[Work]:
+    async def get_works_by_ids(self, ids: list[str], id_type: str = "doi", position: int | None = None) -> list[Work]:
         id_type_param = "openalex" if id_type == "id" else id_type
         results: list[Work] = []
+        raw_items: list[dict] = []
+        bar = None
+        if settings.enable_progress:
+            pos = position if position is not None else get_next_position()
+            bar = tqdm(total=len(ids), desc="openalex:ids", position=pos, unit="work")
         for batch in self._chunks(ids, self.PER_PAGE):
             filter_value = "|".join([str(x).replace("doi:", "") for x in batch])
             params = {
@@ -37,11 +47,48 @@ class OpenAlexClient(BaseClient):
             data = resp.json()
             items = data.get("results", [])
             for it in items:
+                raw_items.append(it)
                 try:
                     results.append(from_dict(data_class=Work, data=it, config=production_config))
                 except Exception:
                     # Skip items we can't parse; upstream will handle
                     continue
+            if bar is not None:
+                bar.update(len(items))
+        if bar is not None:
+            bar.close()
+        # Save raw items (fallback) and dataclass-converted rows if available
+        if settings.persist_intermediate and (results or raw_items):
+            # take dataclass instances and convert to dicts for saving
+            rows = []
+            for w in results:
+                try:
+                    if dataclasses.is_dataclass(w):
+                        rows.append(dataclasses.asdict(w))
+                    elif hasattr(w, "__dict__"):
+                        rows.append({k: v for k, v in w.__dict__.items() if not k.startswith("_")})
+                    else:
+                        rows.append(w)
+                except Exception:
+                    rows.append({
+                        "id": getattr(w, "id", None),
+                        "display_name": getattr(w, "display_name", None),
+                        "doi": getattr(w, "doi", None),
+                    })
+            # save converted dataclasses (if any) and save raw items as fallback
+            try:
+                if rows:
+                    df = pl.from_dicts(rows)
+                    save_dataframe_parquet(df, "openalex_works")
+            except Exception:
+                pass
+            try:
+                if raw_items:
+                    rdf = pl.from_dicts(raw_items)
+                    # Prefer saving converted rows as 'openalex_works', but if none exist, save raw as same name
+                    save_dataframe_parquet(rdf, "openalex_works" if not rows else "openalex_works_raw")
+            except Exception:
+                pass
         return results
 
     async def get_works_by_title(self, title: str) -> list[Work]:
@@ -52,6 +99,9 @@ class OpenAlexClient(BaseClient):
         # fetch details in parallel to speed up title lookups
         ids = [item.get("id") for item in data.get("results", []) if item.get("id")]
         coros = [self.request("GET", f"{self.BASE}/works/{quote(i)}") for i in ids]
+        bar = None
+        if settings.enable_progress and ids:
+            bar = tqdm(total=len(ids), desc="openalex:title", position=get_next_position(), unit="work")
         if coros:
             responses = await asyncio.gather(*coros, return_exceptions=True)
             for resp in responses:
@@ -64,6 +114,26 @@ class OpenAlexClient(BaseClient):
                     )
                 except Exception:
                     continue
+                finally:
+                    if bar:
+                        bar.update(1)
+        if bar is not None:
+            bar.close()
+        # Save title results if configured
+        if settings.persist_intermediate and results:
+            try:
+                df = pl.from_dicts([dataclasses.asdict(w) for w in results])
+                # sanitize title for file name
+                fname = (
+                    title[:64]
+                    .lower()
+                    .replace(" ", "_")
+                    .replace("/", "_")
+                    .replace("\\", "_")
+                )
+                save_dataframe_parquet(df, f"openalex_title_{fname}")
+            except Exception:
+                pass
         return results
 
     def clean_openalex_raw_data(self, works: list[dict]) -> list[dict]:

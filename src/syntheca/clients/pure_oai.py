@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
+import polars as pl
 import xmltodict
+from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
+from syntheca.config import settings
+from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.progress import get_next_position
 
 
 class PureOAIClient(BaseClient):
@@ -164,11 +169,16 @@ class PureOAIClient(BaseClient):
     async def get_all_records(self, collections: list[str]) -> dict[str, list[dict]]:
         results = {}
 
-        async def get_collection_data(collection: str):
+        async def get_collection_data(collection: str, position: int | None = None):
             url = f"{self.BASEURL}?verb=ListRecords&metadataPrefix={self.SCHEMA}&set={collection}"
             resume_url = url.split("&metadataPrefix", maxsplit=1)[0]
 
             col_records: list[dict] = []
+            bar = None
+            if settings.enable_progress:
+                # create a progress bar that updates with number of records fetched; obtain global position for concurrency
+                pos = position if position is not None else get_next_position()
+                bar = tqdm(desc=f"{collection}", unit="rec", position=pos)
             while url:
                 resp = await self.request("GET", url)
                 parsed = xmltodict.parse(resp.text)
@@ -192,6 +202,10 @@ class PureOAIClient(BaseClient):
                             col_records.append(self._parse_orgunit(pub))
                         else:
                             col_records.append(self._parse_publication(pub))
+                # update progress bar with how many were fetched in this page
+                if bar is not None:
+                    bar.update(len(recs))
+
                 # resumption token
                 token = records.get("resumptionToken")
                 if token:
@@ -200,9 +214,24 @@ class PureOAIClient(BaseClient):
                         url = f"{resume_url}&resumptionToken={token_text}"
                         continue
                 url = None
+            if bar is not None:
+                bar.close()
             return {collection: col_records}
 
         for collection in collections:
-            results.update(await get_collection_data(collection))
+            # Do not pass enumerated positions — allocate unique positions globally using get_next_position
+            results.update(await get_collection_data(collection, position=None))
+
+        # persist intermediate results if configured
+        if settings.persist_intermediate:
+            # Save each collection as parquet for quick inspection
+            for col, recs in results.items():
+                if recs:
+                    try:
+                        df = pl.from_dicts(recs)
+                        save_dataframe_parquet(df, f"pure_{col}")
+                    except Exception:
+                        # ignore saving errors
+                        pass
 
         return results

@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     openalex_base_url: str = "https://api.openalex.org"
     cache_dir: Path = Path(__file__).parent.parent / ".cache"
     log_file: Path = Path(__file__).parent.parent / "logs" / "syntheca.log"
+    # UI / behaviour toggles
+    enable_progress: bool = True
+    persist_intermediate: bool = True
 
     model_config = ConfigDict(env_prefix="SYNTHECA_")
 

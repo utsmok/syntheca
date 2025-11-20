@@ -121,3 +121,14 @@ Notes:
 - `write_formatted_excel` uses Polars' `write_excel` to avoid adding a hard `pandas` dependency and to leverage `xlsxwriter` formatting features.
 - All tests pass locally (31 passed, 0 failed) after these changes.
 
+---
+
+2025-11-20 - Enhancements: Progress bars & Intermediate persistence
+
+Summary:
+- Added `tqdm`-based progress bars to client retrieval functions (`PureOAIClient.get_all_records`, `OpenAlexClient.get_works_by_ids`, and `OpenAlexClient.get_works_by_title`), made compatible with `asyncio`. Bars can be displayed concurrently through a global position allocator (`syntheca.utils.progress.get_next_position`). The default behaviour is enabled via `settings.enable_progress = True`.
+- Added `persist_intermediate` boolean to `settings` (default True), and a set of persistence helpers in `src/syntheca/utils/persistence.py` to save/load Parquet files in `settings.cache_dir`.
+- Adjusted clients and `Pipeline` to persist intermediate datasets when enabled (Raw Pure collection data, OpenAlex results and cleaned frames like `oils_clean`, `full_clean`, and `authors_enriched`).
+- Added tests verifying persistence and concurrent progress bar behavior: `tests/test_utils_persistence.py`, `tests/test_concurrent_progress_bars.py`, updates to `tests/test_clients_*` to check saving of parquet files when configured.
+
+
