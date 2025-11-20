@@ -135,6 +135,47 @@ class Pipeline:
                 pass
 
         # Enrich authors
+        # Build or append people_search_names by extracting names from `authors_df` when available.
+        UT_AFFIL_ID = "491145c6-1c9b-4338-aedd-98315c166d7e"
+        print(authors_df)
+        if authors_df is not None:
+            print(f'checking for people search names from authors_df')
+            try:
+                df_persons = authors_df
+                # Try to filter to UT authors if possible
+                if "is_ut" in df_persons.columns:
+                    df_persons = df_persons.filter(pl.col("is_ut"))
+                elif "affiliation_ids_pure" in df_persons.columns:
+                    try:
+                        df_persons = df_persons.filter(pl.col("affiliation_ids_pure").list.contains(UT_AFFIL_ID))
+                    except Exception:
+                        # could be missing or different format; skip filtering
+                        df_persons = authors_df
+                # Identify name columns and build full names
+                built_names = []
+                if "first_names" in df_persons.columns and "family_names" in df_persons.columns:
+                    built_names = [
+                        f"{r['first_names']} {r['family_names']}".strip()
+                        for r in df_persons.select(["first_names", "family_names"]).to_dicts()
+                        if r.get("first_names") or r.get("family_names")
+                    ]
+                elif "first_name" in df_persons.columns and "last_name" in df_persons.columns:
+                    built_names = [
+                        f"{r['first_name']} {r['last_name']}".strip()
+                        for r in df_persons.select(["first_name", "last_name"]).to_dicts()
+                        if r.get("first_name") or r.get("last_name")
+                    ]
+                elif "found_name" in df_persons.columns:
+                    built_names = [r.get("found_name") for r in df_persons.select("found_name").to_dicts() if r.get("found_name")]
+                if built_names:
+                    # Append to existing list and keep unique order
+                    existing = people_search_names or []
+                    people_search_names = list(dict.fromkeys(existing + built_names))
+            except Exception as e:
+                # Don't halt the pipeline on extraction errors; leave people_search_names unchanged
+                print(f' error: {e}')
+                pass
+
         # If authors_df missing and we have a UT People client, optionally search by provided names
         if authors_df is None and ut_people_client is not None and people_search_names:
             candidates = []

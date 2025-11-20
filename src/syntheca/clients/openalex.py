@@ -18,7 +18,7 @@ from tqdm import tqdm
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
 from syntheca.models.openalex import Work, production_config
-from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.persistence import save_dataframe_parquet, load_dataframe_parquet
 from syntheca.utils.progress import get_next_position
 
 
@@ -63,6 +63,25 @@ class OpenAlexClient(BaseClient):
 
         """
         id_type_param = "openalex" if id_type == "id" else id_type
+        # If cache retrieval is enabled, attempt to load a cached file first
+        if settings.use_cache_for_retrieval:
+            try:
+                df = load_dataframe_parquet("openalex_works")
+                if df is not None and df.height:
+                    rows = df.to_dicts()
+                    out: list[Work] = []
+                    for r in rows:
+                        try:
+                            out.append(from_dict(data_class=Work, data=r, config=production_config))
+                        except Exception:
+                            # ignore row we can't parse into a dataclass
+                            continue
+                    if out:
+                        return out
+            except Exception:
+                # Failed to load cache; fall back to API retrieval
+                pass
+
         results: list[Work] = []
         raw_items: list[dict] = []
         bar = None
@@ -129,6 +148,28 @@ class OpenAlexClient(BaseClient):
         return results
 
     async def get_works_by_title(self, title: str) -> list[Work]:
+        # Try to read cached title-based searches if enabled
+        if settings.use_cache_for_retrieval:
+            try:
+                fname = (
+                    title[:64]
+                    .lower()
+                    .replace(" ", "_")
+                    .replace("/", "_")
+                    .replace("\\", "_")
+                )
+                df = load_dataframe_parquet(f"openalex_title_{fname}")
+                if df is not None and df.height:
+                    out = []
+                    for r in df.to_dicts():
+                        try:
+                            out.append(from_dict(data_class=Work, data=r, config=production_config))
+                        except Exception:
+                            continue
+                    if out:
+                        return out
+            except Exception:
+                pass
         """Automated title autocomplete + detail lookup for OpenAlex works.
 
         The method uses the OpenAlex autocomplete endpoint and then fetches full

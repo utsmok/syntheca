@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
         ],
     )
     parser.add_argument(
-        "--max-openalex", type=int, default=500, help="Max DOIs to fetch from OpenAlex (0=all)"
+        "--max-openalex", type=int, default=0, help="Max DOIs to fetch from OpenAlex (0=all)"
     )
     parser.add_argument(
         "--skip-people", action="store_true", help="Skip UT People enrichment calls"
@@ -101,7 +101,7 @@ async def main() -> None:
             openalex_ids = all_dois[: args.max_openalex]
         else:
             openalex_ids = all_dois
-
+        print(persons)
         # Setup people names to search (if persons DataFrame exists), use "first_names" + family name
         people_search_names: list[str] = []
         if not args.skip_people and (

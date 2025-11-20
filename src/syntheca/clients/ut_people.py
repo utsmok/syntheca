@@ -10,8 +10,11 @@ from __future__ import annotations
 from typing import Any
 
 from selectolax.parser import HTMLParser
+import polars as pl
 
 from syntheca.clients.base import BaseClient
+from syntheca.config import settings
+from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
 
 
 class UTPeopleClient(BaseClient):
@@ -39,6 +42,17 @@ class UTPeopleClient(BaseClient):
             no matches are returned.
 
         """
+        # If cache retrieval is enabled, try to load cached results for this name
+        if getattr(settings, "use_cache_for_retrieval", False):
+            try:
+                fname = name.lower().replace(" ", "_")[:64]
+                df = load_dataframe_parquet(f"ut_people_search_{fname}")
+                if df is not None and df.height:
+                    return df.to_dicts()
+            except Exception:
+                # Fall through to live search
+                pass
+
         # build payload similar to notebook
         payload = {
             "id": 1,
@@ -76,6 +90,14 @@ class UTPeopleClient(BaseClient):
                 }
             )
 
+        # Persist search results if configured
+        try:
+            if settings.persist_intermediate and candidates:
+                fname = name.lower().replace(" ", "_")[:64]
+                save_dataframe_parquet(pl.from_dicts(candidates), f"ut_people_search_{fname}")
+        except Exception:
+            # best-effort persistence — ignore failures
+            pass
         return candidates
 
     def _parse_org_text(self, text: str, split: bool = False) -> dict[str, str | None]:

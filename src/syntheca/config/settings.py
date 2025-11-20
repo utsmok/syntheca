@@ -35,8 +35,13 @@ class Settings(BaseSettings):
     # UI / behaviour toggles
     enable_progress: bool = True
     persist_intermediate: bool = True
+    # When enabled, client retrieval methods will attempt to load cached
+    # data from the configured `cache_dir` (saved previously via
+    # `save_dataframe_parquet`) before attempting network requests.
+    use_cache_for_retrieval: bool = False
 
     model_config = ConfigDict(env_prefix="SYNTHECA_")
 
 
 settings = Settings()
+print(f"Loaded settings from environment with prefix SYNTHECA_: {settings}")
