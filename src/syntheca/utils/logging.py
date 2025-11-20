@@ -1,3 +1,9 @@
+"""Logging utilities to configure the project's logger.
+
+This module configures the global `loguru` logger for console and file
+output, setting sensible defaults for debugging and runtime verbosity.
+"""
+
 from __future__ import annotations
 
 import sys
@@ -8,6 +14,11 @@ from syntheca.config import settings
 
 
 def configure_logging() -> None:
+    """Configure the global Loguru logger for console and rotating-file output.
+
+    This helper removes default handlers and sets up a standard stderr handler
+    and a rotating file handler using `settings.log_file`.
+    """
     # Remove default handlers and add new handlers to stderr and a rotating file
     logger.remove()
     # Ensure log dir exists

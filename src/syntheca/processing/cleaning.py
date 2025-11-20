@@ -1,28 +1,30 @@
+"""Publication cleaning utilities for the syntheca pipeline.
+
+This module contains small, testable functions that normalize DOI values and
+perform basic date parsing required by the pipeline's cleaning stage.
+"""
+
 from __future__ import annotations
 
 import polars as pl
 
 
 def normalize_doi(df: pl.DataFrame, col_name: str, new_col: str | None = None) -> pl.DataFrame:
-    """Return a new DataFrame where DOIs in `col_name` are normalized (lowercased,
-    remove https://doi.org prefix and whitespace trimmed).
+    """Normalize DOIs in a DataFrame column.
 
-    Parameters
-    ----------
-    df: pl.DataFrame
-        Input Polars DataFrame.
-    col_name: str
-        Name of the column containing DOI strings.
-    new_col: str | None
-        Optional. If provided, write normalized DOIs to this column name. If None,
-        the original column is overwritten.
+    This helper lowercases DOIs, removes `https://doi.org/` prefixes and trims
+    whitespace, returning a new DataFrame.
 
-    Returns
-    -------
-    pl.DataFrame
-        A new DataFrame with the normalized DOI column.
+    Args:
+        df (pl.DataFrame): Input Polars DataFrame.
+        col_name (str): Name of the column containing DOI strings.
+        new_col (str | None): Optional column name to write normalized DOIs into.
+            If `None`, the original column is overwritten.
+
+    Returns:
+        pl.DataFrame: A new DataFrame with normalized DOI values.
+
     """
-
     new_col = new_col or col_name
     if col_name not in df.columns:
         # Create placeholder column with nulls to allow later joins/ops to proceed
@@ -40,12 +42,18 @@ def normalize_doi(df: pl.DataFrame, col_name: str, new_col: str | None = None) -
 
 
 def clean_publications(df: pl.DataFrame) -> pl.DataFrame:
-    """Lightweight, testable cleaning for publication DataFrames used by pipeline.
+    """Perform basic cleaning on publication DataFrames.
 
-    This function purposely focuses on DOI normalisation and minor date parsing.
-    It is not the full port of the monolith; that happens later.
+    The function focuses on DOI normalization and light date parsing to keep
+    the cleaning predictable and testable in the pipeline.
+
+    Args:
+        df (pl.DataFrame): Input Polars DataFrame representing publications.
+
+    Returns:
+        pl.DataFrame: A cleaned DataFrame with normalized DOIs and parsed publication dates.
+
     """
-
     out = df.clone()
     if "doi" in out.columns:
         out = normalize_doi(out, "doi")

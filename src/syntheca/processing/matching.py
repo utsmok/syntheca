@@ -1,3 +1,9 @@
+"""Matching helpers for fuzzy name/title matching and ID resolution.
+
+This module provides utilities to calculate fuzzy matches (Levenshtein ratio)
+and to resolve missing OpenAlex IDs by performing title lookups.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -11,15 +17,20 @@ UT_OPENALEX_ID = "https://openalex.org/I94624287"
 def calculate_fuzzy_match(
     df: pl.DataFrame, left_col: str, right_col: str, result_col: str = "fuzzy_score"
 ) -> pl.DataFrame:
-    """Calculate a fuzzy match score between two string columns using
-    Levenshtein.ratio.
+    """Calculate a fuzzy match score between two string columns.
 
-    Implementation note:
-    - The function uses pl.struct([...]).map_elements to invoke a Python function
-      row-wise while keeping most of the operation inside an expression.
-    - This performs much better than a full pandas UDF on large DataFrames.
+    Uses Levenshtein.ratio to compute a float score between 0.0 and 1.0,
+    adding a new `result_col` to the returned DataFrame.
 
-    Returns a new DataFrame with the added `result_col` (float in 0..1).
+    Args:
+        df (pl.DataFrame): Input Polars DataFrame.
+        left_col (str): Left column name to compare.
+        right_col (str): Right column name to compare.
+        result_col (str): The name of the new column to store fuzzy scores.
+
+    Returns:
+        pl.DataFrame: A new DataFrame having the `result_col` of fuzzy scores.
+
     """
 
     def _ratio(x: dict[str, str]) -> float:
@@ -49,13 +60,23 @@ async def resolve_missing_ids(
 ) -> pl.DataFrame:
     """Resolve missing OpenAlex IDs by searching OpenAlex works by title.
 
-    This function is async because it calls the OpenAlex client. It will search
-    for titles where `id_col` is null and try to find candidate works. The best
-    match with Levenshtein.ratio >= threshold will be used to fill the id/doi
-    columns. If the work includes the UT OpenAlex id in its corresponding
-    institutions, it will be preferred when above a lower threshold.
-    """
+    The function queries OpenAlex using `client.get_works_by_title` for titles
+    lacking an `id_col` and selects a top-scoring candidate according to
+    Levenshtein.ratio. Found candidates will be used to populate `id_col` and
+    `doi_col` when above the supplied threshold.
 
+    Args:
+        df (pl.DataFrame): Input DataFrame to enrich.
+        client (Any): OpenAlex client exposing `get_works_by_title`.
+        title_col (str): Column containing titles to search.
+        doi_col (str): Column name for DOI (for matching/fallback purposes).
+        id_col (str): Column name for OpenAlex ID.
+        threshold (float): Minimum ratio score to accept a match.
+
+    Returns:
+        pl.DataFrame: A DataFrame with ID/DOI columns updated where matches were found.
+
+    """
     candidates = []
     # gather unique titles that need resolution
     to_search = (

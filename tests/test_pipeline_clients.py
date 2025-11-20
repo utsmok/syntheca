@@ -34,6 +34,7 @@ class FakeOpenAlexWork:
 class FakeOpenAlexClient:
     def __init__(self, works=None):
         self.works = works or [FakeOpenAlexWork("I1", "10.1/test", "Openalex Paper", 2020)]
+
     async def get_works_by_ids(self, ids, position: int | None = None):
         return self.works
 

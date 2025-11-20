@@ -1,3 +1,10 @@
+"""UT People client used to search, scrape and parse faculty profiles.
+
+This module exposes `UTPeopleClient` which provides person search through a
+remote RPC interface and page-scraping helpers to enrich author metadata with
+organization and department details.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -8,13 +15,29 @@ from syntheca.clients.base import BaseClient
 
 
 class UTPeopleClient(BaseClient):
+    """Client for UT People RPC and profile scraping.
+
+    This client provides a method to search persons by name via the RPC
+    endpoint and a helper to scrape profile pages for detailed organization
+    information.
+    """
+
     RPC_URL = "https://people.utwente.nl/wh_services/utwente_ppp/rpc/"
 
     async def search_person(self, name: str) -> list[dict[str, Any]]:
         """Search the people RPC endpoint and return parsed candidate dicts.
 
-        Returns a list of candidate dicts with the following keys if found:
-        - found_name, email, people_page_url, main_orgs, role
+        The RPC endpoint returns HTML; this function parses the search results
+        into a list of candidate dictionaries with the keys:
+            - found_name, email, people_page_url, main_orgs, role.
+
+        Args:
+            name (str): Search query string (name) to send to the RPC API.
+
+        Returns:
+            list[dict[str, Any]]: A list of candidate dictionaries; empty list when
+            no matches are returned.
+
         """
         # build payload similar to notebook
         payload = {
@@ -59,6 +82,16 @@ class UTPeopleClient(BaseClient):
         import re
 
         match = re.search(r"(.+?)\s*\(([^)]+)\)$", text)
+        """Extract organization name and optional abbreviation from a string.
+
+        Example: "Faculty of Science (ENS)" -> {"name": "Faculty of Science", "abbr": "ENS"}
+
+        Args:
+            text (str): Organization text; expected to contain a name and optional parentheses.
+            split (bool): When True and an abbreviation contains dashes, keep the last element.
+        Returns:
+            dict[str, str | None]: Dictionary with `name` and `abbr` keys.
+        """
         if match:
             abbr = match.group(2).strip()
             if abbr and split:
@@ -74,6 +107,14 @@ class UTPeopleClient(BaseClient):
             if h.text(strip=True) == "Organisations":
                 org_heading = h
                 break
+        """Parse an organization listing widget HTML and extract hierarchy.
+
+        Args:
+            html (str): HTML content of a UT People profile page with organization listings.
+
+        Returns:
+            list[dict[str, str | None]] | None: A list of organization dicts or None when no orgs found.
+        """
         if not org_heading:
             return None
         org_widget = org_heading.next
@@ -105,6 +146,15 @@ class UTPeopleClient(BaseClient):
         return organizations if organizations else None
 
     async def scrape_profile(self, url: str) -> list[dict[str, str | None]] | None:
+        """Fetch and parse a UT People profile page to find organization details.
+
+        Args:
+            url (str): Absolute URL to the profile page to scrape.
+
+        Returns:
+            list[dict[str, str | None]] | None: Extracted list of organization details or None on failure.
+
+        """
         async with self.client as c:
             try:
                 resp = await c.get(url)

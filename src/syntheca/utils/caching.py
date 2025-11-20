@@ -1,3 +1,9 @@
+"""Utilities for simple file-based caching of function results.
+
+This module provides a `file_cache` decorator suitable for synchronous and
+asynchronous functions, saving results to a project cache directory.
+"""
+
 from __future__ import annotations
 
 import functools
@@ -10,6 +16,17 @@ from syntheca.config import settings
 
 
 def _make_key(func_name: str, args: tuple, kwargs: dict) -> str:
+    """Create a stable cache key for function arguments.
+
+    Args:
+        func_name (str): Qualname of the function.
+        args (tuple): Positional arguments supplied to the function.
+        kwargs (dict): Keyword arguments supplied to the function.
+
+    Returns:
+        str: A stable hex digest string to use as cache key.
+
+    """
     # Use repr-based hashing; stable for basic types and safe for caching across runs
     m = blake2b(digest_size=20)
     m.update(func_name.encode())
@@ -19,10 +36,14 @@ def _make_key(func_name: str, args: tuple, kwargs: dict) -> str:
 
 
 def file_cache(prefix: str | None = None):
-    """A simple file-based cache decorator that supports async functions.
+    """Create a file-based cache decorator for functions.
 
     Args:
-        prefix: Optional prefix for the cache files.
+        prefix (str | None): Optional prefix for the cache files.
+
+    Returns:
+        Callable: Decorator function suitable for both sync and async functions.
+
     """
 
     def decorator(func):
@@ -31,6 +52,16 @@ def file_cache(prefix: str | None = None):
 
         @functools.wraps(func)
         def _sync_wrapper(*args, **kwargs):
+            """Cache the function result to disk synchronously.
+
+            Args:
+                *args: Positional arguments passed to the wrapped function.
+                **kwargs: Keyword arguments passed to the wrapped function.
+
+            Returns:
+                Any: The result of the wrapped function, possibly loaded from cache.
+
+            """
             key = _make_key(func.__qualname__, args, kwargs)
             filename = cache_dir / f"{prefix or func.__name__}_{key}.pkl"
             if filename.exists():
@@ -43,6 +74,16 @@ def file_cache(prefix: str | None = None):
 
         @functools.wraps(func)
         async def _async_wrapper(*args, **kwargs):
+            """Cache the coroutine function result to disk asynchronously.
+
+            Args:
+                *args: Positional arguments passed to the wrapped coroutine.
+                **kwargs: Keyword arguments passed to the wrapped coroutine.
+
+            Returns:
+                Any: The result of the coroutine, possibly loaded from cache.
+
+            """
             key = _make_key(func.__qualname__, args, kwargs)
             filename = cache_dir / f"{prefix or func.__name__}_{key}.pkl"
             if filename.exists():

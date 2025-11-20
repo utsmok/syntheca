@@ -1,3 +1,9 @@
+"""Enrichment helpers for authors and organizations.
+
+This module contains helpers to load static mappings and enrich author
+DataFrames with faculty membership and related organization flags.
+"""
+
 from __future__ import annotations
 
 import pathlib
@@ -8,11 +14,13 @@ from syntheca.config import settings
 
 
 def load_faculty_mapping() -> dict[str, str]:
-    """Load the faculty mapping from configuration.
+    """Load the faculty mapping from file in `settings.faculties_mapping_path`.
 
-    Returns a mapping from full faculty name -> short name (eg "Faculty of Science and Technology" -> "tnw").
+    Returns:
+        dict[str, str]: A mapping from full faculty/organization name to the
+            preferred short code used in the project (e.g., "Faculty of Science" -> "tnw").
+
     """
-
     path = settings.faculties_mapping_path
     data = {}
     if path.exists():
@@ -25,16 +33,21 @@ def load_faculty_mapping() -> dict[str, str]:
 
 
 def enrich_authors_with_faculties(authors_df: pl.DataFrame) -> pl.DataFrame:
-    """Add boolean faculty columns to `authors_df`.
+    """Enrich a DataFrame of authors with boolean faculty membership columns.
 
-    The function will look for a column named `affiliation_names_pure` (a list[str] per row)
-    with organization names. For each mapping in `faculties.json` we add a new boolean column
-    with the mapping's short code.
+    The function expects a column named `affiliation_names_pure` that contains a
+    list of strings per row; for each faculty mapping (loaded via
+    `load_faculty_mapping`) it adds a boolean column named after the faculty
+    short-code that indicates whether the author has the mapped organization.
 
-    We intentionally keep this function pure and defensive — if the source column is missing,
-    returns the DataFrame unchanged.
+    Args:
+        authors_df (pl.DataFrame): DataFrame containing `affiliation_names_pure`.
+
+    Returns:
+        pl.DataFrame: A new DataFrame with the additional boolean faculty columns
+            or the original DataFrame if no mapping or column exists.
+
     """
-
     mapping = load_faculty_mapping()
     if not mapping:
         return authors_df

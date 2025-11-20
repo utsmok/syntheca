@@ -10,20 +10,24 @@ from syntheca.clients.pure_oai import PureOAIClient
 def sample_oai_xml():
     return (
         "<OAI-PMH><ListRecords><record><metadata>"
-        "<cerif:Publication xmlns:cerif=\"uri\">"
+        '<cerif:Publication xmlns:cerif="uri">'
         "<cerif:Title>Title</cerif:Title><cerif:DOI>10.1/test</cerif:DOI>"
         "</cerif:Publication></metadata></record></ListRecords></OAI-PMH>"
     )
 
 
 def fake_openalex_page():
-    return {"results": [{"id": "https://openalex.org/W1", "doi": "10.1/test", "display_name":"Test"}]}
+    return {
+        "results": [{"id": "https://openalex.org/W1", "doi": "10.1/test", "display_name": "Test"}]
+    }
 
 
 @pytest.mark.asyncio
 async def test_concurrent_progress_bars(monkeypatch):
     from syntheca.utils.progress import reset_positions
+
     reset_positions()
+
     # Pure OAI mock
     async def oai_handler(request):
         return Response(200, content=sample_oai_xml())
@@ -58,7 +62,9 @@ async def test_concurrent_progress_bars(monkeypatch):
 @pytest.mark.asyncio
 async def test_multiple_pure_oai_concurrent(monkeypatch):
     from syntheca.utils.progress import reset_positions
+
     reset_positions()
+
     async def oai_handler(request):
         return Response(200, content=sample_oai_xml())
 
@@ -79,6 +85,7 @@ async def test_multiple_pure_oai_concurrent(monkeypatch):
 @pytest.mark.asyncio
 async def test_progress_disabled(monkeypatch):
     from syntheca.config import settings
+
     old_flag = settings.enable_progress
     settings.enable_progress = False
 

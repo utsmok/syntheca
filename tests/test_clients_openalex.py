@@ -1,3 +1,5 @@
+import pathlib
+
 import pytest
 from httpx import MockTransport, Response
 
@@ -53,7 +55,7 @@ async def test_get_works_by_ids_persistent_cache(tmp_path: pathlib.Path):
     client = OpenAlexClient()
     client.client = client.client.__class__(transport=transport)
 
-    works = await client.get_works_by_ids(["10.123/test"])
+    await client.get_works_by_ids(["10.123/test"])
     # verify file exists
     df = load_dataframe_parquet("openalex_works")
     assert df is not None

@@ -77,22 +77,22 @@ async def test_get_all_records_mock(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_persistence_of_collections(tmp_path: pathlib.Path):
-  old_cache = settings.cache_dir
-  settings.cache_dir = tmp_path
-  settings.persist_intermediate = True
+    old_cache = settings.cache_dir
+    settings.cache_dir = tmp_path
+    settings.persist_intermediate = True
 
-  async def handler(request):
-    return Response(200, content=sample_oai_xml())
+    async def handler(request):
+        return Response(200, content=sample_oai_xml())
 
-  transport = MockTransport(handler)
-  client = PureOAIClient()
-  client.client = client.client.__class__(transport=transport)
-  result = await client.get_all_records(["openaire_cris_publications"])
-  # file should be written to cache dir
-  df = load_dataframe_parquet("pure_openaire_cris_publications")
-  assert df is not None
-  assert df.height == 1
+    transport = MockTransport(handler)
+    client = PureOAIClient()
+    client.client = client.client.__class__(transport=transport)
+    await client.get_all_records(["openaire_cris_publications"])
+    # file should be written to cache dir
+    df = load_dataframe_parquet("pure_openaire_cris_publications")
+    assert df is not None
+    assert df.height == 1
 
-  # restore
-  settings.persist_intermediate = False
-  settings.cache_dir = old_cache
+    # restore
+    settings.persist_intermediate = False
+    settings.cache_dir = old_cache

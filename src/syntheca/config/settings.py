@@ -1,3 +1,10 @@
+"""Application configuration and environment-aware settings.
+
+This module defines a `Settings` class (pydantic `BaseSettings`) used for
+loading environment-based configuration and default values for network,
+paths and feature toggles used throughout the project.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,6 +14,13 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    """Top-level pydantic Settings container for syntheca configuration.
+
+    The class exposes default file system paths, network defaults, and toggles
+    (such as `enable_progress`) which may be overridden via environment
+    variables using the `SYNTHECA_` prefix.
+    """
+
     # Paths to mapping JSON files
     publishers_mapping_path: Path = Path(__file__).parent / "mappings" / "publishers.json"
     faculties_mapping_path: Path = Path(__file__).parent / "mappings" / "faculties.json"

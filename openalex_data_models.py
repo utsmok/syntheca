@@ -1,6 +1,4 @@
-"""
-
-dataclasses to represent data retrieved from OpenAlex
+"""dataclasses to represent data retrieved from OpenAlex.
 
 based on the official docs: https://docs.openalex.org/api-entities/
 
@@ -115,8 +113,7 @@ InstitutionType = Literal[
 
 @dataclass
 class BaseOpenAlex:
-    """
-    Base class for OpenAlex entities with an id.
+    """Base class for OpenAlex entities with an id.
     All entity classes should inherit from this.
     """
 
@@ -458,8 +455,7 @@ class YearCount:
 
 @dataclass
 class SummaryStats:
-    """
-    This class is not used directly:
+    """This class is not used directly:
     the actual fieldname in OpenAlex is "2yr_mean_citedness" but we cannot
     use that as an attribute name in Python.
     Instead, the summary_stats field in entities uses a dict[str, float | int] for now.
@@ -498,8 +494,7 @@ class Role:
 
 @dataclass
 class International:
-    """
-    Container for localized display labels in OpenAlex.
+    """Container for localized display labels in OpenAlex.
 
     Example shape in OpenAlex:
     {

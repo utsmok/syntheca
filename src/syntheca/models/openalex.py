@@ -1,5 +1,4 @@
-"""
-OpenAlex dataclasses and small helpers.
+"""OpenAlex dataclasses and small helpers.
 
 Ported from repository-level `openalex_data_models.py`.
 """
@@ -107,9 +106,11 @@ InstitutionType = Literal[
 
 @dataclass
 class BaseOpenAlex:
-    """
-    Base class for OpenAlex entities with an id.
-    All entity classes should inherit from this.
+    """Base model for OpenAlex entities.
+
+    Provides a small common set of fields (id, display_name, scores, counts)
+    and a convenience `from_dict` classmethod to construct typed instances from
+    API result dictionaries.
     """
 
     id: str | None
@@ -124,11 +125,22 @@ class BaseOpenAlex:
 
     @classmethod
     def from_dict(cls, data: dict) -> Self:
+        """Construct the dataclass instance from a dictionary.
+
+        Args:
+            data (dict): Raw dictionary from OpenAlex API representing the object.
+
+        Returns:
+            Self: A typed dataclass instance created via `dacite.from_dict`.
+
+        """
         return from_dict(data_class=cls, data=data, config=production_config)
 
 
 @dataclass
 class WorkIds:
+    """Identifiers for an OpenAlex Work (various ID schemes)."""
+
     openalex: str
     doi: str | None
     mag: int | str | None
@@ -138,6 +150,8 @@ class WorkIds:
 
 @dataclass
 class AuthorIds:
+    """Identifiers for an OpenAlex Author entry."""
+
     openalex: str
     orcid: str | None
     scopus: str | None
@@ -147,6 +161,8 @@ class AuthorIds:
 
 @dataclass
 class SourceIds:
+    """Identifiers associated to a Source (e.g., ISSN, Mag, Wikidata)."""
+
     openalex: str
     fatcat: str | None
     issn: list[str | None] | None
@@ -157,6 +173,8 @@ class SourceIds:
 
 @dataclass
 class InstitutionIds:
+    """Identifiers for Institutions returned by OpenAlex (ROR, MAG, etc.)."""
+
     openalex: str
     ror: str | None
     grid: str | None
@@ -167,12 +185,16 @@ class InstitutionIds:
 
 @dataclass
 class TopicIds:
+    """Identifiers for Topic entities in the OpenAlex model."""
+
     openalex: str
     wikipedia: str | None
 
 
 @dataclass
 class PublisherIds:
+    """Identifiers for Publisher entities in OpenAlex."""
+
     openalex: str
     ror: str | None
     wikidata: str | None
@@ -180,6 +202,8 @@ class PublisherIds:
 
 @dataclass
 class FunderIds:
+    """Identifiers for Funders associated with a work."""
+
     openalex: str
     doi: str | None
     crossref: str | None
@@ -189,6 +213,8 @@ class FunderIds:
 
 @dataclass
 class ConceptIds:
+    """Identifiers for Concept entities in OpenAlex (MAG, UMLS, Wikidata)."""
+
     openalex: str
     mag: int | str | None
     umls_cui: list[str] | None
@@ -199,17 +225,23 @@ class ConceptIds:
 
 @dataclass
 class Affiliation:
+    """A small affiliation structure with raw text and institution ids."""
+
     raw_affiliation_string: str
     institution_ids: list[str | None]
 
 
 @dataclass
 class DehydratedAuthor(BaseOpenAlex):
+    """Lightweight author representation with optional ORCID."""
+
     orcid: str | None
 
 
 @dataclass
 class DehydratedInstitution(BaseOpenAlex):
+    """Lightweight institution representation (dehydrated form)."""
+
     country_code: str | None
     lineage: list[str | None] | None
     ror: str | None
@@ -218,17 +250,23 @@ class DehydratedInstitution(BaseOpenAlex):
 
 @dataclass
 class RelatedInstitution(DehydratedInstitution):
+    """Represents a related institution with relationship type."""
+
     relationship: Literal["parent", "child", "related", "successor"] | None
 
 
 @dataclass
 class DehydratedInstitutionWithYear:
+    """Institution with associated active years for an author affiliation."""
+
     institution: DehydratedInstitution
     years: list[int | None]
 
 
 @dataclass
 class DehydratedSource(BaseOpenAlex):
+    """Lightweight source/journal/repository representation."""
+
     is_core: bool
     is_in_doaj: bool
     is_oa: bool
@@ -245,6 +283,8 @@ class DehydratedSource(BaseOpenAlex):
 
 @dataclass
 class Repository(BaseOpenAlex):
+    """Repository entry representing OpenAlex repository hosts."""
+
     host_organization: str | None
     host_organization_lineage: list[str | None]
     host_organization_name: str | None
@@ -252,17 +292,23 @@ class Repository(BaseOpenAlex):
 
 @dataclass
 class SimpleDehydratedConcept(BaseOpenAlex):
+    """Simplified concept representation with level and optional wikidata id."""
+
     level: int | None
     wikidata: str | None
 
 
 @dataclass
 class DehydratedConcept(SimpleDehydratedConcept):
+    """Dehydrated concept with a score attribute."""
+
     score: float
 
 
 @dataclass
 class Authorship:
+    """Rich authorship model describing affiliations, positions and author metadata."""
+
     author: DehydratedAuthor
     raw_author_name: str
     is_corresponding: bool
@@ -275,6 +321,8 @@ class Authorship:
 
 @dataclass
 class APCData:
+    """APC (Article Processing Charge) data with value and provenance info."""
+
     value: int | None
     currency: str | None
     value_usd: int | None
@@ -283,12 +331,16 @@ class APCData:
 
 @dataclass
 class APCEntry:
+    """A small APC price entry representing a currency and price."""
+
     price: int
     currency: str
 
 
 @dataclass
 class Biblio:
+    """Bibliographic information such as volume and page ranges."""
+
     volume: str | None
     issue: str | None
     first_page: str | None
@@ -297,6 +349,8 @@ class Biblio:
 
 @dataclass
 class Mesh:
+    """MeSH descriptor representation used for topic classification."""
+
     descriptor_ui: str
     descriptor_name: str
     is_major_topic: bool
@@ -306,6 +360,8 @@ class Mesh:
 
 @dataclass
 class Location:
+    """Location entry representing a fulltext host and licensing state."""
+
     is_accepted: bool | None
     is_oa: bool
     is_published: bool | None
@@ -323,6 +379,8 @@ class Location:
 
 @dataclass
 class OpenAccess:
+    """Open access metadata for an OpenAlex work."""
+
     is_oa: bool
     oa_status: Literal["diamond", "gold", "green", "hybrid", "bronze", "closed"]
     oa_url: str | None
@@ -331,6 +389,8 @@ class OpenAccess:
 
 @dataclass
 class Grant:
+    """Funder grant data associated with works."""
+
     funder: str | None
     funder_display_name: str | None
     award_id: str | None
@@ -338,29 +398,37 @@ class Grant:
 
 @dataclass
 class DehydratedFunder:
+    """Lightweight funder model containing basic fields."""
+
     id: str | None
     display_name: str | None
     ror: str | None
 
 
 @dataclass
-class Domain(BaseOpenAlex): ...
+class Domain(BaseOpenAlex):
+    """Top-level domain model for OpenAlex concept classification."""
 
 
 @dataclass
-class Field(BaseOpenAlex): ...
+class Field(BaseOpenAlex):
+    """Field classification for OpenAlex concepts (broad field)."""
 
 
 @dataclass
-class Subfield(BaseOpenAlex): ...
+class Subfield(BaseOpenAlex):
+    """Subfield classification used to annotate more granular concepts."""
 
 
 @dataclass
-class TopicMinimal(BaseOpenAlex): ...
+class TopicMinimal(BaseOpenAlex):
+    """Minimal topic representation including id and display name."""
 
 
 @dataclass
 class DehydratedTopic(BaseOpenAlex):
+    """Dehydrated topic with score, subfield/field and domain information."""
+
     score: float
     subfield: Subfield
     field: Field
@@ -369,6 +437,8 @@ class DehydratedTopic(BaseOpenAlex):
 
 @dataclass
 class TopicCount(BaseOpenAlex):
+    """Topic count data used for scoring topics associated with a work."""
+
     count: int
     score: float | None
     subfield: Subfield
@@ -378,6 +448,8 @@ class TopicCount(BaseOpenAlex):
 
 @dataclass
 class TopicShare(BaseOpenAlex):
+    """Share value indicating the relevance of a topic for a given work."""
+
     value: float
     subfield: Subfield
     field: Field
@@ -386,16 +458,22 @@ class TopicShare(BaseOpenAlex):
 
 @dataclass
 class SDG(BaseOpenAlex):
+    """Sustainable Development Goals mapping and score for a work."""
+
     score: float
 
 
 @dataclass
 class DehydratedKeyword(BaseOpenAlex):
+    """Dehydrated (small) keyword representation with a score value."""
+
     score: float
 
 
 @dataclass
 class CitationNormalizedPercentile:
+    """Citation normalized percentile object capturing field-normalized percentile metrics."""
+
     value: float
     is_in_top_1_percent: bool
     is_in_top_10_percent: bool
@@ -403,12 +481,16 @@ class CitationNormalizedPercentile:
 
 @dataclass
 class YearCountBasic:
+    """Simple per-year count structure for citations/works."""
+
     year: int | None
     cited_by_count: int | None
 
 
 @dataclass
 class YearCount:
+    """Extended per-year counts including OA and works totals."""
+
     year: int | None
     cited_by_count: int | None
     works_count: int | None
@@ -417,6 +499,8 @@ class YearCount:
 
 @dataclass
 class SummaryStats:
+    """Statistical summaries such as an H-index and mean citedness."""
+
     two_yr_mean_citedness: float
     h_index: int
     i10_index: int
@@ -424,12 +508,16 @@ class SummaryStats:
 
 @dataclass
 class Society:
+    """Society representation for sources and publishers."""
+
     url: str | None
     organization: str | None
 
 
 @dataclass
 class Geo:
+    """Geographic metadata for an institution including coordinates and region info."""
+
     city: str | None
     geonames_city_id: str | None
     region: str | None
@@ -441,6 +529,8 @@ class Geo:
 
 @dataclass
 class Role:
+    """Role mapping for entities that could be funders, publishers or institutions."""
+
     role: Literal["funder", "publisher", "institution"]
     id: str
     works_count: int | None
@@ -448,22 +538,31 @@ class Role:
 
 @dataclass
 class International:
+    """Internationalized content mapping language code to display strings."""
+
     display_name: dict[str, str] | None
     description: dict[str, str] | None
 
 
 @dataclass
 class HasContent:
+    """Flags indicating whether a work has PDF or grobid XML extracted content."""
+
     pdf: bool
     grobid_xml: bool
 
 
 @dataclass
-class Keyword(BaseOpenAlex): ...
+class Keyword(BaseOpenAlex):
+    """Keyword entity with minimal OpenAlex metadata."""
+
+    """Keyword entity containing minimal base metadata."""
 
 
 @dataclass
 class Topic(BaseOpenAlex):
+    """Topic entity with description, subfield and domain hierarchy."""
+
     description: str
     ids: TopicIds
     keywords: list[str]
@@ -475,6 +574,8 @@ class Topic(BaseOpenAlex):
 
 @dataclass
 class Author(BaseOpenAlex):
+    """Author model with affiliation, stats, topics and other profile information."""
+
     ids: AuthorIds
     orcid: str | None
 
@@ -492,6 +593,8 @@ class Author(BaseOpenAlex):
 
 @dataclass
 class Source(BaseOpenAlex):
+    """Source (journal, repository) model with indexing flags and metadata."""
+
     ids: SourceIds
     is_core: bool
     is_in_doaj: bool
@@ -531,6 +634,8 @@ class Source(BaseOpenAlex):
 
 @dataclass
 class Institution(BaseOpenAlex):
+    """Institution model including geo, lineage and repository metadata."""
+
     ids: InstitutionIds
     is_super_system: bool
     summary_stats: dict[str, float | int]
@@ -562,6 +667,8 @@ class Institution(BaseOpenAlex):
 
 @dataclass
 class Publisher(BaseOpenAlex):
+    """Publisher model with summary stats, lineage and image metadata."""
+
     hierarchy_level: int | None
     ids: PublisherIds
     sources_api_url: str
@@ -583,6 +690,8 @@ class Publisher(BaseOpenAlex):
 
 @dataclass
 class Funder(BaseOpenAlex):
+    """Funder model describing grants and summary stats."""
+
     ids: FunderIds
     grants_count: int
     summary_stats: dict[str, float | int | None]
@@ -598,6 +707,8 @@ class Funder(BaseOpenAlex):
 
 @dataclass
 class Concept(BaseOpenAlex):
+    """Concept model capturing concept ids and optional related metrics."""
+
     ids: ConceptIds
     level: int
     summary_stats: dict[str, float | int] | None
@@ -615,6 +726,8 @@ class Concept(BaseOpenAlex):
 
 @dataclass
 class Work(BaseOpenAlex):
+    """Work model with primary fields used across ETL (doi, title, OA metadata, authors)."""
+
     title: str | None
     publication_year: int
     publication_date: str
@@ -679,6 +792,8 @@ T = TypeVar("T", bound=BaseOpenAlex)
 
 @dataclass
 class Meta:
+    """Meta information for paginated OpenAlex responses."""
+
     count: int
     db_response_time_ms: int
     page: int
@@ -688,16 +803,41 @@ class Meta:
 
     @classmethod
     def from_dict(cls, data: dict) -> Meta:
+        """Create a `Meta` instance from the OpenAlex API response.
+
+        Args:
+            data (dict): The `meta` portion of an OpenAlex response.
+
+        Returns:
+            Meta: Parsed Meta dataclass instance.
+
+        """
         return from_dict(data_class=cls, data=data, config=production_config)
 
 
 @dataclass
 class Response[T: BaseOpenAlex]:
+    """Typed paginated response wrapper for OpenAlex endpoints.
+
+    `Response` includes a `meta` member describing the page and a list of
+    typed `results` entries matching the `result_type` supplied to `from_dict`.
+    """
+
     meta: Meta
     results: list[T | None]
 
     @classmethod
     def from_dict(cls, data: dict, result_type: type[T] | None) -> Response[T]:
+        """Create a typed `Response` object from the raw OpenAlex response.
+
+        Args:
+            data (dict): Raw JSON response from OpenAlex list endpoints.
+            result_type (type[T] | None): A dataclass type to parse each result into.
+
+        Returns:
+            Response[T]: Parsed Response with `meta` and typed `results`.
+
+        """
         raw_meta = data.get("meta")
         if raw_meta is None:
             raise ValueError("Missing 'meta' field in response data")

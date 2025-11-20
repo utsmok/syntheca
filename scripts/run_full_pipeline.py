@@ -10,6 +10,7 @@ This script demonstrates how to use the library to:
 
 Use at your own risk; network calls are made and you must have an internet connection.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,13 +30,21 @@ from syntheca.utils.logging import configure_logging
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser("Run full syntheca pipeline scratch script")
     parser.add_argument("--output-dir", type=pathlib.Path, default=pathlib.Path("./output"))
-    parser.add_argument("--collections", nargs="+", default=[
-        "openaire_cris_publications",
-        "openaire_cris_persons",
-        "openaire_cris_orgunits",
-    ])
-    parser.add_argument("--max-openalex", type=int, default=500, help="Max DOIs to fetch from OpenAlex (0=all)")
-    parser.add_argument("--skip-people", action="store_true", help="Skip UT People enrichment calls")
+    parser.add_argument(
+        "--collections",
+        nargs="+",
+        default=[
+            "openaire_cris_publications",
+            "openaire_cris_persons",
+            "openaire_cris_orgunits",
+        ],
+    )
+    parser.add_argument(
+        "--max-openalex", type=int, default=500, help="Max DOIs to fetch from OpenAlex (0=all)"
+    )
+    parser.add_argument(
+        "--skip-people", action="store_true", help="Skip UT People enrichment calls"
+    )
     return parser.parse_args()
 
 
@@ -47,8 +56,14 @@ async def main() -> None:
     configure_logging()
 
     # Instantiate clients
-    async with PureOAIClient() as pure_client, OpenAlexClient() as openalex_client, UTPeopleClient() as ut_client:
-        print("Retrieving data from Pure OAI-PMH concurrently: %s" % ",".join(args.collections))
+    async with (
+        PureOAIClient() as pure_client,
+        OpenAlexClient() as openalex_client,
+        UTPeopleClient() as ut_client,
+    ):
+        print(
+            "Retrieving data from Pure OAI-PMH concurrently: {}".format(",".join(args.collections))
+        )
         # concurrently fetch all requested Pure OAI collections
         tasks = [pure_client.get_all_records([c]) for c in args.collections]
         results = await asyncio.gather(*tasks)
@@ -61,14 +76,21 @@ async def main() -> None:
         persons = pl.from_dicts(raw.get("openaire_cris_persons", []) or [])
         orgs = pl.from_dicts(raw.get("openaire_cris_orgunits", []) or [])
 
-        print(f"Loaded: publications={publications.height}, persons={persons.height}, orgs={orgs.height}")
+        print(
+            f"Loaded: publications={publications.height}, persons={persons.height}, orgs={orgs.height}"
+        )
 
         # Build DOIs to fetch from OpenAlex
         doi_col = "doi"
         if doi_col in publications.columns:
             doi_series = (
                 publications.select(doi_col)
-                .with_columns(pl.col(doi_col).str.replace("https://doi.org/", "").str.to_lowercase().str.strip_chars())
+                .with_columns(
+                    pl.col(doi_col)
+                    .str.replace("https://doi.org/", "")
+                    .str.to_lowercase()
+                    .str.strip_chars()
+                )
                 .to_series()
             )
             all_dois = [d for d in doi_series.unique().to_list() if d]
@@ -82,7 +104,9 @@ async def main() -> None:
 
         # Setup people names to search (if persons DataFrame exists), use "first_names" + family name
         people_search_names: list[str] = []
-        if not args.skip_people and ("first_names" in persons.columns and "family_names" in persons.columns):
+        if not args.skip_people and (
+            "first_names" in persons.columns and "family_names" in persons.columns
+        ):
             # build unique search names, keep 'firstname lastname'
             people_search_names = [
                 (f"{a['first_names']} {a['family_names']}".strip())

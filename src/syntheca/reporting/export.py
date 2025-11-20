@@ -1,3 +1,9 @@
+"""Reporting export helpers for writing DataFrame outputs.
+
+This module contains small convenience functions to write Polars DataFrames to
+Parquet and formatted Excel files as used by the pipeline and CLI utilities.
+"""
+
 from __future__ import annotations
 
 import pathlib
@@ -7,9 +13,15 @@ import polars as pl
 
 
 def write_parquet(df: pl.DataFrame, path: str | pathlib.Path) -> pathlib.Path:
-    """Write DataFrame to a parquet file.
+    """Write a Polars DataFrame to Parquet.
 
-    Returns the path written.
+    Args:
+        df (pl.DataFrame): The DataFrame to write.
+        path (str | pathlib.Path): Path to the output parquet file.
+
+    Returns:
+        pathlib.Path: Path object pointing to the file written.
+
     """
     p = pathlib.Path(path)
     if p.is_dir():
@@ -19,11 +31,19 @@ def write_parquet(df: pl.DataFrame, path: str | pathlib.Path) -> pathlib.Path:
 
 
 def write_formatted_excel(df: pl.DataFrame, path: str | pathlib.Path) -> pathlib.Path:
-    """Write DataFrame to an Excel workbook with some basic formatting.
+    """Write a Polars DataFrame to an Excel workbook with basic formatting.
 
-    Implementation notes:
-    - Uses polars' to_pandas() and pandas/xlsxwriter for column sizing and format.
-    - This keeps the heavy-lifting in polars while using the robust Excel writer in pandas.
+    Uses `polars` `write_excel` which internally delegates to pandas/xlsxwriter
+    for the writer. The function sets a reasonable default for date formatting
+    and attempts to autofit columns when supported.
+
+    Args:
+        df (pl.DataFrame): DataFrame to export to Excel.
+        path (str | pathlib.Path): Path to write the Excel file to.
+
+    Returns:
+        pathlib.Path: Path object pointing to the file written.
+
     """
     p = pathlib.Path(path)
     if p.suffix.lower() not in (".xlsx", ".xlsm", ".xls"):

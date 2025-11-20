@@ -1,3 +1,10 @@
+"""Pure OAI-PMH client integration for the syntheca project.
+
+This module provides `PureOAIClient`, which wraps Pure's OAI-PMH endpoints
+and parses CERIF/OAI XML into flattened dictionaries for downstream
+processing and analysis.
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -25,6 +32,15 @@ class PureOAIClient(BaseClient):
     # Helper utilities
     @staticmethod
     def _ensure_list(value: Any) -> list:
+        """Return a list for `value`, converting None to empty list.
+
+        Args:
+            value (Any): The value that should be treated as a list.
+
+        Returns:
+            list: `value` if it's already a list, [`value`] if scalar, or [] when None.
+
+        """
         if value is None:
             return []
         if isinstance(value, list):
@@ -33,6 +49,19 @@ class PureOAIClient(BaseClient):
 
     @staticmethod
     def _get_text(value: Any) -> str | None:
+        """Extract the text content of a possibly nested element.
+
+        Many XML-parsing helpers return a dictionary where text content is under
+        the key `#text`. This helper extracts that text or coerces scalars to
+        strings. Returns `None` for `None` input.
+
+        Args:
+            value (Any): The parsed XML node value to extract text from.
+
+        Returns:
+            str | None: Extracted string or None if not present.
+
+        """
         if value is None:
             return None
         if isinstance(value, dict):
@@ -41,6 +70,17 @@ class PureOAIClient(BaseClient):
 
     @staticmethod
     def _safe_get(data: dict, keys: list[str], default=None):
+        """Traverse `data` by the supplied list of `keys` and return nested value.
+
+        Args:
+            data (dict): A nested dict to traverse.
+            keys (list[str]): The ordered list of keys defining the path.
+            default (Any): The fallback to return when path can't be traversed.
+
+        Returns:
+            Any: The nested value or `default` if not found.
+
+        """
         cur = data
         for k in keys:
             if not isinstance(cur, dict) or k not in cur:
@@ -49,7 +89,18 @@ class PureOAIClient(BaseClient):
         return cur
 
     def _parse_publication(self, pub: dict) -> dict:
-        # Based on notebook helpers: reduce to a flat shape (extended)
+        """Parse a CERIF publication XML dictionary to a flat dict.
+
+        This mirrors the notebook helpers by flattening and extracting common
+        fields from a CERIF/OAI-PMH publication representation.
+
+        Args:
+            pub (dict): Raw parsed publication dictionary from xmltodict.
+
+        Returns:
+            dict: A flattened dictionary with common keys (id, title, doi, authors, etc.).
+
+        """
         return {
             "id": self._safe_get(pub, ["@id"]),
             "type": self._parse_enum(pub.get("pubt:Type")),
@@ -107,6 +158,15 @@ class PureOAIClient(BaseClient):
         }
 
     def _parse_person(self, pers: dict) -> dict:
+        """Parse a CERIF person element into a flat dictionary.
+
+        Args:
+            pers (dict): Raw parsed person dictionary.
+
+        Returns:
+            dict: Normalized person dictionary with `id`, `family_names`, `first_names`, and `orcid`.
+
+        """
         return {
             "id": self._safe_get(pers, ["@id"]),
             "family_names": self._get_text(
@@ -119,7 +179,18 @@ class PureOAIClient(BaseClient):
         }
 
     def _parse_enum(self, value: str | dict | None) -> str | None:
-        """Parses a CERIF controlled vocab value: dict with #text or a URL string."""
+        """Parse a CERIF controlled vocabulary element to its string ID.
+
+        CERIF vocab values may be returned as a dict with `#text` or as a
+        URL-like string; this helper extracts a clean ID when possible.
+
+        Args:
+            value (str | dict | None): The raw controlled-vocab element.
+
+        Returns:
+            str | None: A trimmed ID string or None when input is missing.
+
+        """
         if value is None:
             return None
         if isinstance(value, dict):
@@ -130,6 +201,15 @@ class PureOAIClient(BaseClient):
         return str(value)
 
     def _parse_person_name(self, name_dict: dict | None) -> tuple[str | None, str | None]:
+        """Extract `family` and `first` name from a CERIF name dictionary.
+
+        Args:
+            name_dict (dict | None): Name node representing `cerif:PersonName`.
+
+        Returns:
+            tuple[str | None, str | None]: Tuple of (family_names, first_names).
+
+        """
         if not isinstance(name_dict, dict):
             return None, None
         family = self._get_text(name_dict.get("cerif:FamilyNames"))
@@ -137,6 +217,18 @@ class PureOAIClient(BaseClient):
         return family, first
 
     def _parse_contributors(self, contrib_list: list | None) -> list[dict] | None:
+        """Parse a list of contributor nodes to a list of dictionaries.
+
+        This helper is used to extract authors/editors and their affiliation
+        details into a compact structure friendly for DF conversion.
+
+        Args:
+            contrib_list (list | None): A list of contributor nodes from CERIF.
+
+        Returns:
+            list[dict] | None: Normalized list of contributors, or None when empty.
+
+        """
         if not contrib_list:
             return None
         parsed_list = []
@@ -160,6 +252,15 @@ class PureOAIClient(BaseClient):
         return parsed_list if parsed_list else None
 
     def _parse_orgunit(self, org: dict) -> dict:
+        """Parse an organization unit entry into a dictionary.
+
+        Args:
+            org (dict): Raw organization entry from CERIF XML.
+
+        Returns:
+            dict: Normalized organization unit with `id`, `name`, and `acronym`.
+
+        """
         return {
             "id": self._safe_get(org, ["@id"]),
             "name": self._get_text(org.get("cerif:Name")),
@@ -167,12 +268,44 @@ class PureOAIClient(BaseClient):
         }
 
     async def get_all_records(self, collections: list[str]) -> dict[str, list[dict]]:
+        """Retrieve all records for a list of OAI-PMH `collections`.
+
+        This method iterates through the collections provided, handling
+        resumption tokens internally, parsing records and returning a dict
+        mapping collection name to a list of parsed record dictionaries.
+
+        Args:
+            collections (list[str]): A list of OAI collection identifiers to fetch.
+
+        Returns:
+            dict[str, list[dict]]: Mapping of collection name to parsed records.
+
+        """
         results = {}
 
         async def get_collection_data(collection: str, position: int | None = None):
+            """Fetch a single OAI collection resumption loop and return records.
+
+            Args:
+                collection (str): The collection key to fetch.
+                position (int | None): Optional tqdm `position` for progress bar.
+
+            Returns:
+                dict[str, list[dict]]: Mapping of the collection to the list of parsed records.
+
+            """
             url = f"{self.BASEURL}?verb=ListRecords&metadataPrefix={self.SCHEMA}&set={collection}"
             resume_url = url.split("&metadataPrefix", maxsplit=1)[0]
 
+            """Fetch a single OAI collection resumption loop and return records.
+
+            Args:
+                collection (str): The collection key to fetch.
+                position (int | None): Optional tqdm `position` for progress bar.
+
+            Returns:
+                dict[str, list[dict]]: Mapping of the collection to the list of parsed records.
+            """
             col_records: list[dict] = []
             bar = None
             if settings.enable_progress:

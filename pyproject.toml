@@ -52,6 +52,8 @@ select = [
     "N",
     "SIM",
     "RUF",
+    "DOC",
+    "D",
 ]
 ignore=["E501"]
 [tool.ruff.lint.isort]

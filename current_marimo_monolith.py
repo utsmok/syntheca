@@ -85,9 +85,7 @@ with app.setup:
     )
 
     def timing_decorator(func):
-        """
-        A decorator that prints the function name and execution time.
-        """
+        """A decorator that prints the function name and execution time."""
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -118,10 +116,10 @@ def _(add_openalex_to_df, enrich_employee_data):
         merge_with_oils: bool = False,
         input_clean_data: pl.DataFrame | None = None,
     ) -> None:
-        """
-        Full pipeline to process Pure data, enrich with People Page and OpenAlex data, merge with OILS data, and prepare for export.
-        Parameters:
+        """Full pipeline to process Pure data, enrich with People Page and OpenAlex data, merge with OILS data, and prepare for export.
 
+        Parameters
+        ----------
         Core data:
             Files exported by MUS OAI-PMH scraper (paths / strs):
             - publications_path: path to Pure publications data file (pickle)
@@ -148,7 +146,6 @@ def _(add_openalex_to_df, enrich_employee_data):
         Returns (pl.DataFrame): final merged, enriched, and filtered dataframe
 
         """
-
         if not isinstance(input_clean_data, pl.DataFrame):
             print(f"Data from: {publications_path}, {orgs_path}, {persons_path}, {oils_data_path}")
         else:
@@ -210,9 +207,7 @@ def _(add_openalex_to_df, enrich_employee_data):
                             )
                         )
                     else:
-                        gathered.append(
-                            ut_publications_enriched.filter(pl.col(fac.lower()) == True)
-                        )
+                        gathered.append(ut_publications_enriched.filter(pl.col(fac.lower())))
 
                 if len(gathered) == 0:
                     mo.output.append(
@@ -267,21 +262,7 @@ def _(add_openalex_to_df, enrich_employee_data):
 
 @app.cell
 def _():
-    note = r"""
-        # for finding authors that are missing faculty affiliations
-        merged_df.explode("pure_authors_names").group_by(
-            "pure_authors_names", "faculty_abbr"
-        ).count().sort("count", descending=True).with_columns(
-            pl.concat_str(
-                [
-                    pl.lit("https://people.utwente.nl/overview?query="),
-                    pl.col("pure_authors_names")
-                    .str.replace_all(" ", "%20")
-                    .str.replace_all("\.", "%20"),
-                ]
-            ).alias("pp_url")
-        )
-        """
+    pass
 
 
 @app.function
@@ -632,8 +613,7 @@ def _(verbose):
 
 @app.function
 def parse_found_name(found_name):
-    """
-    Parses a string in the format 'Lastname, I. (Firstname)' into its components.
+    """Parses a string in the format 'Lastname, I. (Firstname)' into its components.
 
     Args:
         found_name: The string to parse.
@@ -641,6 +621,7 @@ def parse_found_name(found_name):
     Returns:
         A dictionary with 'first_name', 'last_name', and 'initials',
         or None if the string doesn't match the expected format.
+
     """
     match = re.match(r"([^,]+),\s*(.*?)\s*\((.*?)\)", found_name)
     if not match:
@@ -658,10 +639,7 @@ def parse_found_name(found_name):
 
     initials_str = " ".join(initials)
 
-    if particles:
-        last_name = f"{' '.join(particles)} {last_name_part}"
-    else:
-        last_name = last_name_part
+    last_name = f"{' '.join(particles)} {last_name_part}" if particles else last_name_part
 
     return {
         "first_name": first_name.replace(" - ", "-"),
@@ -675,10 +653,7 @@ def _(verbose):
     async def fetch_employee_data(
         client: httpx.AsyncClient, first_name: str, last_name: str
     ) -> dict[str, any]:
-        """
-        Fetches and parses employee data from the UT people page RPC endpoint using selectolax.
-        """
-
+        """Fetches and parses employee data from the UT people page RPC endpoint using selectolax."""
         first_name = first_name or ""
         last_name = last_name or ""
 
@@ -770,7 +745,6 @@ def _(fetch_employee_data, fetch_organization_details):
     @timing_decorator
     async def enrich_employee_data(df: pl.DataFrame) -> pl.DataFrame:
         """Orchestrates the two-layer data fetching and enrichment process."""
-
         if "first_name" not in df.columns or "last_name" not in df.columns:
             mo.output.append(
                 mo.md(
@@ -816,8 +790,7 @@ def _(fetch_employee_data, fetch_organization_details):
 @app.function
 @timing_decorator
 def parse_org_details(df: pl.DataFrame) -> pl.DataFrame:
-    """uses the nested dict structure in column 'org_details' to set the bools for faculties and institutes, and creates convenience cols for names and abbrs for all orgs"""
-
+    """Uses the nested dict structure in column 'org_details' to set the bools for faculties and institutes, and creates convenience cols for names and abbrs for all orgs."""
     parsing_mapping = {
         "Digital Society Institute": "dsi",
         "MESA+ Institute": "mesa",
@@ -944,7 +917,7 @@ def clean_publications(pure_publications: pl.DataFrame) -> pl.DataFrame:
         ]
     )
     pure_publications = pure_publications[
-        [s.name for s in pure_publications if not (s.null_count() == pure_publications.height)]
+        [s.name for s in pure_publications if s.null_count() != pure_publications.height]
     ]
     drop_cols = [
         "language",
@@ -1102,14 +1075,13 @@ def clean_publications(pure_publications: pl.DataFrame) -> pl.DataFrame:
 def join_authors_and_publications(
     authors_df: pl.DataFrame, publications_df: pl.DataFrame
 ) -> pl.DataFrame:
-    """
-    Join authors and publications data to add crucial data like faculty/instititute/group affiliations.
+    """Join authors and publications data to add crucial data like faculty/instititute/group affiliations.
     Input should be the output of 'clean_and_enrich_persons_data'+'enrich_employee_data'; and the 'clean_publications' functions.
 
     Returns:
         pl.DataFrame: Publications DataFrame enriched with merged author affiliation data -- so that for each publication we know which faculties/institutes any of the authors are affiliated with.
-    """
 
+    """
     if "internal_repository_id" not in authors_df.columns and "pure_id" not in authors_df.columns:
         print(f"Found columns: {authors_df.columns}")
         raise ValueError(
@@ -1193,8 +1165,7 @@ def get_counts_per_pure_publisher(
     faculty_list: list[str] | None,
     institute_list: list[str] | None,
 ) -> pl.DataFrame:
-    """
-    For a given df with enriched publication data, calculate counts of items per publisher per faculty/institute.
+    """For a given df with enriched publication data, calculate counts of items per publisher per faculty/institute.
     You can specify a list of faculties/institutes to include; if None, defaults will be used (all core faculties and all institutes)
     It does the following:
 
@@ -1236,8 +1207,7 @@ def get_counts_per_pure_publisher(
 def get_openalex_works_bulk_by_id(
     ids: list[str], id_type: str = "doi", clean_data: bool = True, per_page: int = 50
 ) -> pl.DataFrame:
-    """
-    for a given list of DOIs or openalex ids, retrieve the corresponding works from OpenAlex API. Set the type of id with id_type ('doi' or 'id').
+    """For a given list of DOIs or openalex ids, retrieve the corresponding works from OpenAlex API. Set the type of id with id_type ('doi' or 'id').
     if clean_data is True, process the raw data to extract relevant fields and return a cleaned DataFrame.
 
     """
@@ -1273,7 +1243,6 @@ def get_openalex_works_bulk_by_id(
                 except Exception:
                     # reduce amount of results per page, split into multiple queries, combine results
                     temp_per_page = 5
-                    temp_works = []
                     for start in range(0, len(chunk), temp_per_page):
                         try:
                             sub_chunk = chunk[start : start + temp_per_page]
@@ -1309,9 +1278,7 @@ def _(verbose):
     def get_openalex_works_by_title(
         titles: list[str], retry_unfound: bool = False
     ) -> list[dict[str, str]]:
-        """
-        for a given list of titles, use the autocomplete api to find the corresponding OpenAlex works.
-        """
+        """For a given list of titles, use the autocomplete api to find the corresponding OpenAlex works."""
         autocomplete_url = "https://api.openalex.org/autocomplete/works"
         headers = {"User-Agent": "mailto:s.mok@utwente.nl"}
 
@@ -1388,10 +1355,7 @@ def _(verbose):
 @app.function
 @timing_decorator
 def clean_openalex_raw_data(df: pl.DataFrame) -> pl.DataFrame:
-    """
-    for a given df with raw OpenAlex works data, extract relevant fields and drop large/not interesting cols.
-    """
-
+    """For a given df with raw OpenAlex works data, extract relevant fields and drop large/not interesting cols."""
     dropcols = [
         "abstract_inverted_index",
         "related_works",
@@ -1723,8 +1687,7 @@ def _(add_missing_items_by_title):
         use_titles: bool = False,
         title_col: str = "title",
     ) -> pl.DataFrame:
-        """
-        For a given df with a column with dois, retrieve corresponding OpenAlex works and merge them into the df.
+        """For a given df with a column with dois, retrieve corresponding OpenAlex works and merge them into the df.
 
         if 'use_titles' is True, will also run a second pass for items that were not found by DOI, using title search.
         """
@@ -1761,11 +1724,10 @@ def _():
     @timing_decorator
     def export_data(
         merged_df: pl.DataFrame,
-        excel_path: str = None,
-        parquet_path: str = None,
+        excel_path: str | None = None,
+        parquet_path: str | None = None,
     ) -> pl.DataFrame:
-        """
-        Prepares dataframe for excel output: removed unwanted/unnecessary columns and sorts cols.
+        """Prepares dataframe for excel output: removed unwanted/unnecessary columns and sorts cols.
         Stores the resulting dataframe both as excel and parquet file, and returns the df as well.
         """
         # set these cols at the front of output in this order
@@ -1833,10 +1795,7 @@ def _():
 @app.function
 @timing_decorator
 def filter_publisher(df: pl.DataFrame, publisher_filter: list[str]):
-    """
-    filters a df based on a list of publisher names.
-    """
-
+    """Filters a df based on a list of publisher names."""
     print(f"started with {df.height} rows")
     publisher_cols = ["publishers", "primary_host_org", "all_host_orgs"]
     selected_publisher_cols = [x for x in df.columns if x in publisher_cols]
@@ -1913,47 +1872,39 @@ def merge_oils_with_all(oils_df: pl.DataFrame, full_df: pl.DataFrame) -> pl.Data
 @timing_decorator
 def extract_author_and_funder_names(df: pl.DataFrame) -> pl.DataFrame:
     extractions = []
-    if "authorships" in df.columns:
-        if df["authorships"].dtype == pl.Struct:
-            extractions.extend(
-                [
-                    pl.col("authorships")
-                    .list.eval(
-                        pl.element()
-                        .struct.field("author")
-                        .struct.field("display_name")
-                        .drop_nulls()
-                    )
-                    .alias("oa_authors_names"),
-                    pl.col("authorships")
-                    .list.eval(
-                        pl.element().struct.field("author").struct.field("orcid").drop_nulls()
-                    )
-                    .alias("oa_authors_orcids"),
-                ]
-            )
-    if "funders" in df.columns:
-        if df["funders"].dtype == pl.Struct:
-            extractions.append(
-                pl.col("funders")
-                .list.eval(pl.element().struct.field("display_name").drop_nulls())
-                .alias("funders"),
-            )
-    if "authors" in df.columns:
-        if df["authors"].dtype == pl.Struct:
-            extractions.append(
-                pl.col("authors")
+    if "authorships" in df.columns and df["authorships"].dtype == pl.Struct:
+        extractions.extend(
+            [
+                pl.col("authorships")
                 .list.eval(
-                    pl.concat_str(
-                        [
-                            pl.element().struct.field("first_names"),
-                            pl.element().struct.field("family_names"),
-                        ],
-                        separator=" ",
-                    ).drop_nulls()
+                    pl.element().struct.field("author").struct.field("display_name").drop_nulls()
                 )
-                .alias("pure_authors_names")
+                .alias("oa_authors_names"),
+                pl.col("authorships")
+                .list.eval(pl.element().struct.field("author").struct.field("orcid").drop_nulls())
+                .alias("oa_authors_orcids"),
+            ]
+        )
+    if "funders" in df.columns and df["funders"].dtype == pl.Struct:
+        extractions.append(
+            pl.col("funders")
+            .list.eval(pl.element().struct.field("display_name").drop_nulls())
+            .alias("funders"),
+        )
+    if "authors" in df.columns and df["authors"].dtype == pl.Struct:
+        extractions.append(
+            pl.col("authors")
+            .list.eval(
+                pl.concat_str(
+                    [
+                        pl.element().struct.field("first_names"),
+                        pl.element().struct.field("family_names"),
+                    ],
+                    separator=" ",
+                ).drop_nulls()
             )
+            .alias("pure_authors_names")
+        )
 
     return df.with_columns(*extractions)
 
@@ -1963,9 +1914,7 @@ def extract_author_and_funder_names(df: pl.DataFrame) -> pl.DataFrame:
 def add_missing_affils(
     df: pl.DataFrame, more_data: list[dict[str, list[str]]] | None = None
 ) -> pl.DataFrame:
-    """
-    a hacky quick fix for adding missing affiliation data for certain authors.
-    """
+    """A hacky quick fix for adding missing affiliation data for certain authors."""
     # for each person in more_data
     # key=name, value = list of abbrs
     # parse the abbreviations:
@@ -2017,7 +1966,7 @@ def add_missing_affils(
     for data in more_data:
         update_dict = dict.fromkeys(bool_cols, False)
         update_dict.update(dict.fromkeys(list_cols))
-        update_dict["name"] = list(data.keys())[0]
+        update_dict["name"] = next(iter(data.keys()))
         affils = data[update_dict["name"]]
         for abbr in affils:
             if "-" in abbr:
@@ -2357,7 +2306,7 @@ def _(all_plus_oa_elsevier, oils_plus_oa):
 
 @app.function
 def drop_columns_that_are_all_null(_df: pl.DataFrame) -> pl.DataFrame:
-    return _df[[s.name for s in _df if not (s.null_count() == _df.height)]]
+    return _df[[s.name for s in _df if s.null_count() != _df.height]]
 
 
 @app.cell(column=1, hide_code=True)
@@ -2420,33 +2369,7 @@ def _(data):
 
 @app.cell(column=2)
 def _():
-    OAI_PMH_VERBS = [
-        "ListSets",
-        "ListMetadataFormats",
-        "ListRecords",
-        "Identify",
-    ]
-    CERIF_ITEM_TYPES = [
-        "cerif:Person",
-        "cerif:OrgUnit",
-        "cerif:Publication",
-        "cerif:Product",
-        "cerif:Patent",
-        "cerif:Product",
-        "cerif:Project",
-        "cerif:Funding",
-    ]
-    CERIF_COLLECTIONS = [
-        "openaire_cris_publications",
-        "openaire_cris_persons",
-        "openaire_cris_orgunits",
-        "openaire_cris_funding",
-        "openaire_cris_patents",
-        "openaire_cris_projects",
-        "openaire_cris_datasets",
-        "openaire_cris_products",
-        "datasets:all",
-    ]
+    pass
 
 
 @app.cell
@@ -2537,8 +2460,7 @@ def _():
         return data
 
     def parse_enum(value: str | dict | None) -> str | None:
-        """
-        Parses a field that might be a controlled vocabulary URL or a dict with #text.
+        """Parses a field that might be a controlled vocabulary URL or a dict with #text.
         Extracts the most meaningful part.
         """
         if value is None:
@@ -2796,7 +2718,7 @@ def _(pure_data):
     lens = defaultdict(int)
     keyset = {}
     valueset = {}
-    for name, collection in zip(["pubs", "pers", "orgs"], [pubs, pers, orgs]):
+    for name, collection in zip(["pubs", "pers", "orgs"], [pubs, pers, orgs], strict=False):
         keys = {}
         values = {}
         for p in collection:
@@ -2837,7 +2759,7 @@ def _(
             return type(None)
         if isinstance(d, dict):
             for k, v in d.items():
-                if (not v == type(None)) and v:
+                if (v != type(None)) and v:
                     if isinstance(v, list):
                         res = check_not_none(v)
                         if not isinstance(res, list):
@@ -2880,11 +2802,17 @@ def _(
         print(keyset)
         print(valueset)
 
-    check_data(zip(["pubs", "pers", "orgs"], [parsed_publications, parsed_persons, parsed_orgs]))
+    check_data(
+        zip(
+            ["pubs", "pers", "orgs"],
+            [parsed_publications, parsed_persons, parsed_orgs],
+            strict=False,
+        )
+    )
 
-    df_publications = pl.DataFrame(parsed_publications, infer_schema_length=0)
-    df_persons = pl.DataFrame(parsed_persons, infer_schema_length=0)
-    df_orgs = pl.DataFrame(parsed_orgs, infer_schema_length=0)
+    pl.DataFrame(parsed_publications, infer_schema_length=0)
+    pl.DataFrame(parsed_persons, infer_schema_length=0)
+    pl.DataFrame(parsed_orgs, infer_schema_length=0)
 
 
 if __name__ == "__main__":

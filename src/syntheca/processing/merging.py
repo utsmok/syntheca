@@ -1,3 +1,9 @@
+"""Merging helpers to join and deduplicate publication datasets.
+
+This module contains functions which normalize DOIs across DataFrames and
+merge/deduplicate datasets using DOI as primary key with title fallback.
+"""
+
 from __future__ import annotations
 
 import polars as pl
@@ -11,12 +17,21 @@ def merge_datasets(
     doi_col_oils: str = "doi",
     doi_col_full: str = "doi",
 ) -> pl.DataFrame:
-    """Normalize DOIs and join two dataframes on normalized DOIs.
+    """Join two DataFrames on normalized DOIs.
 
-    The function will ensure DOIs in both frames are normalized using `normalize_doi`
-    and then perform a left join of `full_df` onto `oils_df`.
+    Both DataFrames will have their DOI columns normalized (via `normalize_doi`) and
+    then a left join of `full_df` onto `oils_df` is performed.
+
+    Args:
+        oils_df (pl.DataFrame): The primary publications DataFrame (e.g., Pure OAI).
+        full_df (pl.DataFrame): Additional works DataFrame to merge in (e.g., OpenAlex).
+        doi_col_oils (str): Column name for DOI in `oils_df`.
+        doi_col_full (str): Column name for DOI in `full_df`.
+
+    Returns:
+        pl.DataFrame: The joined DataFrame containing fields from both inputs.
+
     """
-
     oils = normalize_doi(oils_df, doi_col_oils, new_col="_norm_doi")
     full = normalize_doi(full_df, doi_col_full, new_col="_norm_doi")
 
@@ -25,13 +40,21 @@ def merge_datasets(
 
 
 def deduplicate(df: pl.DataFrame, doi_col: str = "doi", title_col: str = "title") -> pl.DataFrame:
-    """Return a deduplicated DataFrame.
+    """Produce a deduplicated DataFrame by DOI and normalized title fallback.
 
     Strategy:
-    - Normalize DOIs and drop duplicate DOIs keeping the first occurrence.
-    - For rows without DOIs, drop duplicates by normalized title (lowercase, stripped).
-    """
+        1. Normalize DOIs and remove duplicate DOIs, keeping the first occurrence.
+        2. For rows without DOIs, normalize titles and remove duplicates.
 
+    Args:
+        df (pl.DataFrame): The DataFrame to deduplicate.
+        doi_col (str): Name of the DOI column.
+        title_col (str): Name of the title column used as fallback dedupe key.
+
+    Returns:
+        pl.DataFrame: A deduplicated DataFrame.
+
+    """
     # Normalize DOIs, use helper
     df_norm = normalize_doi(df, doi_col, new_col="_norm_doi")
     # remove duplicates by DOI first

@@ -1,3 +1,10 @@
+"""Pipeline orchestrator for the Syntheca ETL processing.
+
+This module exposes `Pipeline`, a small async orchestrator that wires data
+ingestion, processing and reporting helpers together into a single `run`
+convenience function designed for easy testing and scripted execution.
+"""
+
 from __future__ import annotations
 
 import dataclasses
@@ -16,13 +23,25 @@ from syntheca.utils.progress import get_next_position
 
 
 class Pipeline:
-    """A lightweight async orchestrator for the syntheca ETL.
+    """Lightweight ETL pipeline orchestrator for Syntheca.
 
-    The pipeline accepts DataFrames as inputs for testability but can also be
-    extended to perform client-based ingestion when supplied with client instances.
+    This class provides a small, asynchronous orchestration layer that wires
+    ingestion (optional clients), cleaning, enrichment, merging, and export
+    stages together in a convenient `run` method.
+
+    The pipeline is intentionally minimal and accepts prebuilt Polars DataFrames
+    (to ease testing) but can also accept client instances to perform remote
+    ingestion from OpenAlex, Pure OAI, and UT People. The `run` method returns
+    the final merged `polars.DataFrame`.
     """
 
     def __init__(self) -> None:
+        """Initialize a Pipeline instance.
+
+        The constructor is intentionally lightweight; no state is kept on the
+        instance. It exists primarily to provide a place for lifecycle
+        management in the future.
+        """
         pass
 
     async def run(
@@ -38,15 +57,33 @@ class Pipeline:
         openalex_ids: list[str] | None = None,
         people_search_names: list[str] | None = None,
     ) -> pl.DataFrame:
-        """Run the ETL pipeline.
+        """Execute ETL steps and optionally export the results.
 
-        Steps (simple proof-of-concept implementation):
-        1. Normalize DOIs and clean publications
-        2. Enrich authors with faculties
-        3. Merge datasets and deduplicate
-        4. Write results to output directory if provided
+        The pipeline executes the following steps in order:
+        1. Ingest publications (from provided `oils_df` or via `pure_client`).
+        2. Clean and normalize publication records.
+        3. Optionally fetch and clean OpenAlex work data when `openalex_client`
+           and `openalex_ids` are provided.
+        4. Enrich authors with faculty/org details using `ut_people_client`.
+        5. Merge the cleaned datasets and deduplicate the final set.
+        6. Optionally write out to parquet and xlsx if `output_dir` is provided.
+
+        Args:
+            oils_df (pl.DataFrame | None): Polars DataFrame of Pure OAI publications.
+            full_df (pl.DataFrame | None): Polars DataFrame for OpenAlex/other works.
+            authors_df (pl.DataFrame | None): Polars DataFrame of author/person records.
+            output_dir (pathlib.Path | str | None): Optional directory path to write
+                parquet and Excel exports.
+            pure_client (PureOAIClient | None): Optional Pure OAI client to fetch data.
+            openalex_client (OpenAlexClient | None): Optional OpenAlex client to fetch works.
+            ut_people_client (UTPeopleClient | None): Optional UT People client to search/enrich people.
+            openalex_ids (list[str] | None): Optional list of OpenAlex/DOI IDs to fetch.
+            people_search_names (list[str] | None): Optional list of person search names.
+
+        Returns:
+            pl.DataFrame: The merged and deduplicated DataFrame representing final publications.
+
         """
-
         # output frame placeholder not used here — return merged_final
 
         if oils_df is None and full_df is None and pure_client is None and openalex_client is None:

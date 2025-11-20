@@ -1,3 +1,9 @@
+"""OpenAlex API client module.
+
+Provides `OpenAlexClient`, an async client wrapper that fetches works and
+converts API responses into typed `Work` dataclasses used by the pipeline.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -24,11 +30,38 @@ class OpenAlexClient(BaseClient):
 
     @staticmethod
     def _chunks(iterable: Iterable[str], size: int):
+        """Yield successive chunks from `iterable` of length `size`.
+
+        Args:
+            iterable (Iterable[str]): The iterable to chunk.
+            size (int): The max size of each chunk.
+
+        Yields:
+            list[str]: Slices of the original iterable of length <= `size`.
+
+        """
         it = list(iterable)
         for i in range(0, len(it), size):
             yield it[i : i + size]
 
-    async def get_works_by_ids(self, ids: list[str], id_type: str = "doi", position: int | None = None) -> list[Work]:
+    async def get_works_by_ids(
+        self, ids: list[str], id_type: str = "doi", position: int | None = None
+    ) -> list[Work]:
+        """Retrieve works from OpenAlex for provided IDs and return typed models.
+
+        This method performs batched requests to the OpenAlex `works` endpoint and
+        converts results into typed `Work` dataclass instances when possible.
+
+        Args:
+            ids (list[str]): A list of IDs to fetch; typically DOIs or OpenAlex IDs.
+            id_type (str): The id type ("doi" or "id") that defines the filter.
+            position (int | None): Optional tqdm progress bar position. If `None`, a
+                global position will be allocated.
+
+        Returns:
+            list[Work]: Parsed OpenAlex `Work` dataclass instances.
+
+        """
         id_type_param = "openalex" if id_type == "id" else id_type
         results: list[Work] = []
         raw_items: list[dict] = []
@@ -70,11 +103,13 @@ class OpenAlexClient(BaseClient):
                     else:
                         rows.append(w)
                 except Exception:
-                    rows.append({
-                        "id": getattr(w, "id", None),
-                        "display_name": getattr(w, "display_name", None),
-                        "doi": getattr(w, "doi", None),
-                    })
+                    rows.append(
+                        {
+                            "id": getattr(w, "id", None),
+                            "display_name": getattr(w, "display_name", None),
+                            "doi": getattr(w, "doi", None),
+                        }
+                    )
             # save converted dataclasses (if any) and save raw items as fallback
             try:
                 if rows:
@@ -86,12 +121,26 @@ class OpenAlexClient(BaseClient):
                 if raw_items:
                     rdf = pl.from_dicts(raw_items)
                     # Prefer saving converted rows as 'openalex_works', but if none exist, save raw as same name
-                    save_dataframe_parquet(rdf, "openalex_works" if not rows else "openalex_works_raw")
+                    save_dataframe_parquet(
+                        rdf, "openalex_works" if not rows else "openalex_works_raw"
+                    )
             except Exception:
                 pass
         return results
 
     async def get_works_by_title(self, title: str) -> list[Work]:
+        """Automated title autocomplete + detail lookup for OpenAlex works.
+
+        The method uses the OpenAlex autocomplete endpoint and then fetches full
+        work entries in parallel for matching IDs.
+
+        Args:
+            title (str): The title text to send to the `autocomplete` endpoint.
+
+        Returns:
+            list[Work]: A list of `Work` dataclass instances matching the title.
+
+        """
         url = f"{self.BASE}/autocomplete/works?q={quote(title)}"
         resp = await self.request("GET", url)
         data = resp.json()
@@ -101,7 +150,9 @@ class OpenAlexClient(BaseClient):
         coros = [self.request("GET", f"{self.BASE}/works/{quote(i)}") for i in ids]
         bar = None
         if settings.enable_progress and ids:
-            bar = tqdm(total=len(ids), desc="openalex:title", position=get_next_position(), unit="work")
+            bar = tqdm(
+                total=len(ids), desc="openalex:title", position=get_next_position(), unit="work"
+            )
         if coros:
             responses = await asyncio.gather(*coros, return_exceptions=True)
             for resp in responses:
@@ -124,20 +175,27 @@ class OpenAlexClient(BaseClient):
             try:
                 df = pl.from_dicts([dataclasses.asdict(w) for w in results])
                 # sanitize title for file name
-                fname = (
-                    title[:64]
-                    .lower()
-                    .replace(" ", "_")
-                    .replace("/", "_")
-                    .replace("\\", "_")
-                )
+                fname = title[:64].lower().replace(" ", "_").replace("/", "_").replace("\\", "_")
                 save_dataframe_parquet(df, f"openalex_title_{fname}")
             except Exception:
                 pass
         return results
 
     def clean_openalex_raw_data(self, works: list[dict]) -> list[dict]:
-        """Return cleaned dictionaries for OpenAlex work data similar to the monolith implementation."""
+        """Return cleaned dictionaries for OpenAlex raw work data.
+
+        This helper inspects OpenAlex work records and extracts a small
+        consistent set of fields used by downstream processing — it is inspired
+        by the legacy monolith transformations but intentionally keeps the
+        output compact and JSON-friendly.
+
+        Args:
+            works (list[dict]): A list of OpenAlex work result dictionaries.
+
+        Returns:
+            list[dict]: A list of simplified, normalized work dictionaries.
+
+        """
         cleaned = []
         utwente_oa_id = "https://openalex.org/I94624287"
         for w in works:
