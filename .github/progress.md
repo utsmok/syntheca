@@ -1,5 +1,3 @@
----
-
 2025-11-19 - Completed Step 1: Configuration & Models
 
 Summary:
@@ -16,8 +14,6 @@ Summary:
 Notes:
 - Mappings were extracted from `current_marimo_monolith.py`. The `publishers.json` contains a subset of the mapping variants used in the notebook — we can expand later.
 - `faculties.json` includes `ut_uuid` and `openalex_ut_id` to remain compatible with existing logic in the notebook.
-
----
 
 2025-11-19T00:20:00Z - Completed Step 3: Clients
 
@@ -66,7 +62,7 @@ Notes:
 - The `file_cache` decorator is intentionally simple: no TTL, no invalidation or complex key normalization. It's good for deterministic inputs (titles/DOIs) but can be updated later.
 - `BaseClient` implements a `request` helper that raises `HTTPStatusError`; the retry predicate handles these errors and determines when to retry. We use `before_sleep_log` to tie `tenacity` logging into `loguru`.
 
----
+
 
 2025-11-19 - Started/Completed Step 4: Processing (initial core functions)
 
@@ -97,7 +93,6 @@ Notes:
 - `resolve_missing_ids` is conservative: only matches that exceed a default `threshold=0.9` are used. The function also provides a small boost for UT-affiliated OpenAlex works to help resolve ambiguous titles.
 - `deduplicate` is intentionally simple and returns a stable, deterministic subset. Later versions can implement more complex title-similarity or ID heuristics.
 
----
 
 2025-11-20 - Completed Step 5: Reporting & Pipeline
 
@@ -121,7 +116,6 @@ Notes:
 - `write_formatted_excel` uses Polars' `write_excel` to avoid adding a hard `pandas` dependency and to leverage `xlsxwriter` formatting features.
 - All tests pass locally (31 passed, 0 failed) after these changes.
 
----
 
 2025-11-20 - Enhancements: Progress bars & Intermediate persistence
 
@@ -132,3 +126,37 @@ Summary:
 - Added tests verifying persistence and concurrent progress bar behavior: `tests/test_utils_persistence.py`, `tests/test_concurrent_progress_bars.py`, updates to `tests/test_clients_*` to check saving of parquet files when configured.
 
 
+2025-11-21 - Added integration tests for pipeline
+
+Summary:
+- Added `tests/test_pipeline_integration.py` with:
+	- A mock-based end-to-end pipeline integration test (`test_pipeline_integration_mock_end_to_end`) that uses fake clients and persisted `openaire_cris_orgunits` to validate full ingestion, enrichment, and join behavior.
+	- An live test (`test_pipeline_integration_live_minimal`) which performs a minimal OpenAlex fetch (single DOI) to validate real-world API behavior.
+- Integration tests ensure the end-to-end pipeline path (ingest -> cleaning -> enrichment -> joining -> merge) behaves as expected with both synthetic and minimal real data.
+
+Notes:
+- The mock test uses `save_dataframe_parquet` to ensure the pipeline can load `openaire_cris_orgunits` and map authors correctly.
+- There are no live tests for the other APIs yet.
+
+2025-11-21 - Added validation utilities & schema normalization
+
+Summary:
+- Added `src/syntheca/utils/validation.py` with helpers to normalize string columns (`normalize_str_column`), ensure required columns (`ensure_columns`) and a specific `normalize_orgs_df` helper to normalize organization dataframes used across the pipeline and clients.
+- Replaced manual defensive list-to-scalar conversions in `src/syntheca/processing/organizations.py` with a normalized approach using `normalize_orgs_df` and ensured `map_author_affiliations` uses the normalized org schema.
+- Added unit tests in `tests/test_utils_validation.py` covering the new utilities and adapted organization tests to verify behavior with list-based fields.
+
+
+
+2025-11-21 - Completed Step 5b: Advanced Enrichment & Merging (Gap Fill)
+
+Summary:
+- Implemented `src/syntheca/processing/organizations.py` with `resolve_org_hierarchy` and `map_author_affiliations` to map Pure org units and author affiliation IDs to faculty boolean flags and convenience columns.
+- Extended `src/syntheca/processing/enrichment.py` with `parse_scraped_org_details` to parse nested scraped org details into `faculty`/`department`/`group` cols and boolean flags, and added `apply_manual_corrections` to load `corrections.json` and apply fixes to author rows.
+- Extended `src/syntheca/processing/merging.py` with `join_authors_and_publications` to aggregate author flags and list columns and join them back onto publications by `pure_id`.
+- Integrated the above into `src/syntheca/pipeline.py` to run the full enrichment & joining flow, with persistence-aware org loading.
+- Added unit tests for organizations parsing (`tests/test_processing_organizations.py`), advanced enrichment parsing & corrections (`tests/test_processing_enrichment_advanced.py`), and join logic (`tests/test_processing_merging.py`).
+
+Notes:
+- The enrich & join functions rely on `faculties.json` and `corrections.json` stored in `src/syntheca/config/mappings/`.
+- The pipeline will attempt to load processed `openaire_cris_orgunits` via persistence utilities if present; otherwise fall back to no organization mapping.
+- More robust matching and hierarchical resolution can be added; these functions focus on deterministic behavior and unit testability.

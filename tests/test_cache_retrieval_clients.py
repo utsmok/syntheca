@@ -28,9 +28,9 @@ async def test_pure_oai_cache_load(tmp_path, monkeypatch):
 @pytest.mark.asyncio
 async def test_openalex_cache_load(tmp_path, monkeypatch):
     # Prepare cache entry for openalex works
-    sample = pl.from_dicts([
-        {"id": "https://openalex.org/W1", "doi": "10.1/test", "display_name": "Test"}
-    ])
+    sample = pl.from_dicts(
+        [{"id": "https://openalex.org/W1", "doi": "10.1/test", "display_name": "Test"}]
+    )
     save_dataframe_parquet(sample, "openalex_works")
 
     old_flag = settings.use_cache_for_retrieval

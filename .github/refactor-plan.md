@@ -21,10 +21,11 @@ Completed? | Step | Module | Description |
 | :--- | :--- | :--- | :--- |
 | YES | **1** | **Config & Models** | ✓ Completed — Set up Pydantic settings, externalized hardcoded data (publishers, faculties) to JSON, and implemented OpenAlex dataclasses. |
 | YES | **2** | **Infrastructure** | ✓ Completed — Built `loguru` logging config, async file cache, and `BaseClient` with tenacity retries and httpx lifecycle handling. |
+| YES | **2b** | **Utilities & Validation** | ✓ Completed — Added `src/syntheca/utils/validation.py` to centralize schema normalization and simple validation helpers used across processing modules. |
 | YES | **3** | **Clients** | ✓ Completed — Implemented `PureOAIClient`, `OpenAlexClient`, and `UTPeopleClient` including robust XML helpers, `dacite` typed parsing and chunked OpenAlex queries. |
 | YES | **4** | **Processing (Core)** | ✓ Completed — added basic `cleaning`, `matching`, `enrichment` (string-based), and `merging` logic. |
-| NO  | **5a** | **Pipeline (Basic)** | ✓ Completed — Basic orchestrator structure implemented. |
-| NO  | **5b** | **Enrichment Gap Fill** | **Critical Missing Logic**: Port Org hierarchy resolution, full scraping pipeline, manual corrections, and Author-Publication aggregation. |
+| TO BE CHECKED  | **5a** | **Pipeline (Basic)** | ✓ Completed — Basic orchestrator structure implemented. |
+| TO BE CHECKED | **5b** | **Enrichment Gap Fill** | ✓ Completed — Implemented `resolve_org_hierarchy`, `map_author_affiliations`, `parse_scraped_org_details`, `apply_manual_corrections`, and `join_authors_and_publications`. |
 | NO  | **6** | **Frontend** | Create the clean `app.py` Marimo notebook that serves as the UI. |
 
 ---
@@ -170,6 +171,13 @@ Notes (changes & clarifications):
     *   `merge_datasets(pure_df, openalex_df, oils_df)`: High-level joins.
     *   `deduplicate(df)`: Logic to handle duplicate entries based on DOI/Title.
 
+
+---
+
+## Steps in progress
+
+Work has been done on these steps, but the results need to be tested, verified, etc.
+
 ### Step 5: Reporting & Orchestration
 **Goal**: Tie it all together and produce output.
 
@@ -185,9 +193,6 @@ Notes (changes & clarifications):
         3.  **Ingest**: Fetch Pure (OAI), OpenAlex (Bulk), scrape People Pages (Async gather).
         4.  **Transform**: Call `processing` functions.
         5.  **Report**: Call `export` functions.
----
-
-## Steps to be implemented
 
 ### Step 5b: Advanced Enrichment & Merging (Gap Filling)
 **Goal**: Restore the deep enrichment and aggregation logic from the legacy monolith to ensure data completeness.
@@ -236,6 +241,11 @@ Notes (changes & clarifications):
         6.  **Merge**: Call `join_authors_and_publications` to fuse persons into publications.
         7.  **Finalize**: Merge with OILS/OpenAlex (existing logic) and Export.
 
+---
+
+# Steps to be implemented
+
+
 ### Step 6: Frontend (Marimo)
 **Goal**: User Interface.
 
@@ -245,12 +255,3 @@ Notes (changes & clarifications):
     *   **Action**: Button click triggers `await Pipeline().run(...)`.
     *   **Display**: Show progress bars and final DataFrame sample.
 
-
----
-
-## Development Workflow
-
-For each step:
-1.  Write the code in `src/`.
-2.  Run `uv run ruff check --fix` and `uv run ruff format`.
-3.  Run `uv run ty check`.

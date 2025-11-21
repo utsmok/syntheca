@@ -15,9 +15,9 @@ from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
-from syntheca.utils.persistence import load_dataframe_parquet
-from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
 from syntheca.utils.progress import get_next_position
+
 
 class PureOAIClient(BaseClient):
     """Client for retrieving OAI-PMH records from Pure / OAI endpoints.
@@ -122,8 +122,12 @@ class PureOAIClient(BaseClient):
             "status": self._parse_enum(pub.get("cerif:Status")),
             "access_right": self._parse_enum(pub.get("ar:Access")),
             "license": self._parse_enum(pub.get("cerif:License")),
-            "authors": self._parse_contributors(self._ensure_list(self._safe_get(pub, ["cerif:Authors", "cerif:Author"]))),
-            "editors": self._parse_contributors(self._ensure_list(self._safe_get(pub, ["cerif:Editors", "cerif:Editor"]))),
+            "authors": self._parse_contributors(
+                self._ensure_list(self._safe_get(pub, ["cerif:Authors", "cerif:Author"]))
+            ),
+            "editors": self._parse_contributors(
+                self._ensure_list(self._safe_get(pub, ["cerif:Editors", "cerif:Editor"]))
+            ),
             "keywords": [
                 self._get_text(kw)
                 for kw in self._ensure_list(pub.get("cerif:Keyword"))
@@ -149,19 +153,15 @@ class PureOAIClient(BaseClient):
                         "cerif:Name",
                     ],
                 )
-            )
+            ),
         }
         # Published in / Part of relationships
         published_in = self._safe_get(pub, ["cerif:PublishedIn", "cerif:Publication"]) or {}
         result["published_in_id"] = self._safe_get(published_in, ["@id"]) if published_in else None
-        result["published_in_title"] = self._get_text(
-            self._safe_get(published_in, ["cerif:Title"])
-        )
+        result["published_in_title"] = self._get_text(self._safe_get(published_in, ["cerif:Title"]))
         part_of = self._safe_get(pub, ["cerif:PartOf", "cerif:Publication"]) or {}
         result["part_of_id"] = self._safe_get(part_of, ["@id"]) if part_of else None
-        result["part_of_title"] = self._get_text(
-            self._safe_get(part_of, ["cerif:Title"])
-        )
+        result["part_of_title"] = self._get_text(self._safe_get(part_of, ["cerif:Title"]))
 
         # Event information
         event = self._safe_get(pub, ["cerif:PresentedAt", "cerif:Event"]) or {}
@@ -212,6 +212,7 @@ class PureOAIClient(BaseClient):
 
         Returns:
             list[dict] | None: List of parsed medium dicts or None when empty.
+
         """
         if not file_locations:
             return []
@@ -238,6 +239,7 @@ class PureOAIClient(BaseClient):
 
         Returns:
             list[dict] | None: List of referenced publication dictionaries.
+
         """
         if not refs:
             return []
@@ -350,6 +352,7 @@ class PureOAIClient(BaseClient):
 
         # Debug logs removed: parsing returns `result` mapping
         return result
+
     async def get_all_records(self, collections: list[str]) -> dict[str, list[dict]]:
         """Retrieve all records for a list of OAI-PMH `collections`.
 
@@ -433,7 +436,7 @@ class PureOAIClient(BaseClient):
 
             if bar is not None:
                 bar.close()
-            final = {collection:col_records}
+            final = {collection: col_records}
             return final
 
         for collection in collections:

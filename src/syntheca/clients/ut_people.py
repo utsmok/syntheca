@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from selectolax.parser import HTMLParser
 import polars as pl
+from selectolax.parser import HTMLParser
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings

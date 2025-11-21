@@ -18,7 +18,7 @@ from tqdm import tqdm
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
 from syntheca.models.openalex import Work, production_config
-from syntheca.utils.persistence import save_dataframe_parquet, load_dataframe_parquet
+from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
 from syntheca.utils.progress import get_next_position
 
 
@@ -151,13 +151,7 @@ class OpenAlexClient(BaseClient):
         # Try to read cached title-based searches if enabled
         if settings.use_cache_for_retrieval:
             try:
-                fname = (
-                    title[:64]
-                    .lower()
-                    .replace(" ", "_")
-                    .replace("/", "_")
-                    .replace("\\", "_")
-                )
+                fname = title[:64].lower().replace(" ", "_").replace("/", "_").replace("\\", "_")
                 df = load_dataframe_parquet(f"openalex_title_{fname}")
                 if df is not None and df.height:
                     out = []

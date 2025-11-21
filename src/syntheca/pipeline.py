@@ -18,6 +18,7 @@ from syntheca.clients.pure_oai import PureOAIClient
 from syntheca.clients.ut_people import UTPeopleClient
 from syntheca.config import settings
 from syntheca.processing import cleaning, enrichment, merging
+from syntheca.processing.organizations import map_author_affiliations, resolve_org_hierarchy
 from syntheca.reporting import export
 from syntheca.utils.progress import get_next_position
 
@@ -139,7 +140,7 @@ class Pipeline:
         UT_AFFIL_ID = "491145c6-1c9b-4338-aedd-98315c166d7e"
         print(authors_df)
         if authors_df is not None:
-            print(f'checking for people search names from authors_df')
+            print("checking for people search names from authors_df")
             try:
                 df_persons = authors_df
                 # Try to filter to UT authors if possible
@@ -147,7 +148,9 @@ class Pipeline:
                     df_persons = df_persons.filter(pl.col("is_ut"))
                 elif "affiliation_ids_pure" in df_persons.columns:
                     try:
-                        df_persons = df_persons.filter(pl.col("affiliation_ids_pure").list.contains(UT_AFFIL_ID))
+                        df_persons = df_persons.filter(
+                            pl.col("affiliation_ids_pure").list.contains(UT_AFFIL_ID)
+                        )
                     except Exception:
                         # could be missing or different format; skip filtering
                         df_persons = authors_df
@@ -166,14 +169,18 @@ class Pipeline:
                         if r.get("first_name") or r.get("last_name")
                     ]
                 elif "found_name" in df_persons.columns:
-                    built_names = [r.get("found_name") for r in df_persons.select("found_name").to_dicts() if r.get("found_name")]
+                    built_names = [
+                        r.get("found_name")
+                        for r in df_persons.select("found_name").to_dicts()
+                        if r.get("found_name")
+                    ]
                 if built_names:
                     # Append to existing list and keep unique order
                     existing = people_search_names or []
                     people_search_names = list(dict.fromkeys(existing + built_names))
             except Exception as e:
                 # Don't halt the pipeline on extraction errors; leave people_search_names unchanged
-                print(f' error: {e}')
+                print(f" error: {e}")
                 pass
 
         # If authors_df missing and we have a UT People client, optionally search by provided names
@@ -198,7 +205,27 @@ class Pipeline:
             authors_df = pl.from_dicts(candidates) if candidates else pl.DataFrame()
 
         if authors_df is not None:
+            # Enrich authors with scraped orgs -> parse org details
             _authors_enriched = enrichment.enrich_authors_with_faculties(authors_df)
+            _authors_enriched = enrichment.parse_scraped_org_details(_authors_enriched)
+            # Apply manual corrections from config
+            _authors_enriched = enrichment.apply_manual_corrections(_authors_enriched)
+
+            # If org units exist and part_of hierarchy is available, map affiliations
+            try:
+                # Attempt to load orgs from persisted CSV/Parquet; fall back to empty
+                from syntheca.utils.persistence import load_dataframe_parquet
+
+                orgs_path = "openaire_cris_orgunits"
+                orgs_df = load_dataframe_parquet(orgs_path)
+            except Exception:
+                orgs_df = pl.DataFrame()
+
+            processed_orgs = (
+                resolve_org_hierarchy(orgs_df) if orgs_df is not None else pl.DataFrame()
+            )
+            if processed_orgs.height:
+                _authors_enriched = map_author_affiliations(_authors_enriched, processed_orgs)
             if settings.persist_intermediate:
                 try:
                     from syntheca.utils.persistence import save_dataframe_parquet
@@ -207,11 +234,26 @@ class Pipeline:
                 except Exception:
                     pass
 
+        # Optionally join author-level aggregated data to publications
+        try:
+            merged_with_authors = (
+                merging.join_authors_and_publications(_authors_enriched, oils_clean)
+                if (
+                    _authors_enriched is not None
+                    and _authors_enriched.height
+                    and oils_clean is not None
+                    and oils_clean.height
+                )
+                else oils_clean
+            )
+        except Exception:
+            merged_with_authors = oils_clean
+
         if not full_clean.height:
             # Nothing to merge; return oils_clean
-            merged = oils_clean
+            merged = merged_with_authors
         else:
-            merged = merging.merge_datasets(oils_clean, full_clean)
+            merged = merging.merge_datasets(merged_with_authors, full_clean)
 
         # Deduplicate final set
         merged_final = merging.deduplicate(merged)
