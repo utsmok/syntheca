@@ -424,7 +424,6 @@ class PureOAIClient(BaseClient):
                 # update progress bar with how many were fetched in this page
                 if bar is not None:
                     bar.update(len(recs))
-                break
                 # resumption token
                 token = records.get("resumptionToken")
                 if token:

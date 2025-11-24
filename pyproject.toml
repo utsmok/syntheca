@@ -23,6 +23,7 @@ dependencies = [
     "xlsxwriter>=3.2.9",
     "xmltodict>=1.0.2",
     "rich>=14.2.0",
+    "lxml>=6.0.2",
 ]
 
 [build-system]

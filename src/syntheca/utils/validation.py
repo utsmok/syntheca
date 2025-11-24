@@ -4,6 +4,7 @@ The goal is to centralize common defensive patterns (normalizing list vs scalar
 columns, ensuring column presence, and simple type coercion) to reduce
 repetition in processing modules.
 """
+
 from __future__ import annotations
 
 import typing
@@ -11,7 +12,7 @@ import typing
 import polars as pl
 
 
-def _coerce_to_str_scalar(value: typing.Any) -> typing.Union[str, None]:
+def _coerce_to_str_scalar(value: typing.Any) -> str | None:
     """Coerce a possibly-list/string/None value into a single string or None.
 
     - If input is None: returns None.
@@ -48,9 +49,10 @@ def ensure_columns(df: pl.DataFrame, cols: dict[str, type]) -> pl.DataFrame:
         cols: Mapping of column name -> Python type or polars dtype
     Returns:
         DataFrame with guaranteed columns.
+
     """
     out = df
-    for name, typ in cols.items():
+    for name, _typ in cols.items():
         if name not in out.columns:
             out = out.with_columns(pl.lit(None).cast(pl.Utf8).alias(name))
     return out
