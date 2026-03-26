@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
+  <responseDate>2025-06-15T10:00:00Z</responseDate>
+  <request verb="ListRecords" metadataPrefix="oai_cerif_openaire">https://ris.utwente.nl/ws/oai</request>
+  <ListRecords>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:publications/aaa-111</identifier>
+        <datestamp>2025-06-01</datestamp>
+      </header>
+      <metadata>
+        <cerif:Publication xmlns:cerif="urn:xmlns:org:eurocris:cerif-1.6-2"
+                           xmlns:pubt="https://w3id.org/cerif/vocab/OutputTypes#"
+                           xmlns:ar="https://w3id.org/cerif/vocab/AccessRestrictions#"
+                           id="aaa-111">
+          <cerif:Title>Advances in Metadata Retrieval: A Synthetic Approach</cerif:Title>
+          <cerif:DOI>10.1234/synth.2025.001</cerif:DOI>
+          <cerif:URL>https://doi.org/10.1234/synth.2025.001</cerif:URL>
+          <cerif:Abstract>This paper explores synthetic metadata retrieval techniques.</cerif:Abstract>
+          <cerif:Status>published</cerif:Status>
+          <cerif:PublicationDate>2025-01-15</cerif:PublicationDate>
+          <cerif:Language>en</cerif:Language>
+          <cerif:Volume>42</cerif:Volume>
+          <cerif:Issue>3</cerif:Issue>
+          <cerif:StartPage>100</cerif:StartPage>
+          <cerif:EndPage>115</cerif:EndPage>
+          <cerif:Keyword>metadata</cerif:Keyword>
+          <cerif:Keyword>retrieval</cerif:Keyword>
+          <cerif:ISSN>1234-5678</cerif:ISSN>
+          <cerif:Publishers>
+            <cerif:Publisher>
+              <cerif:OrgUnit>
+                <cerif:Name>Elsevier</cerif:Name>
+              </cerif:OrgUnit>
+            </cerif:Publisher>
+          </cerif:Publishers>
+          <cerif:Authors>
+            <cerif:Author>
+              <cerif:Person id="p-100">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>Researcher</cerif:FamilyNames>
+                  <cerif:FirstNames>Alice</cerif:FirstNames>
+                </cerif:PersonName>
+                <cerif:ORCID>0000-0001-0000-0001</cerif:ORCID>
+              </cerif:Person>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="org-10">
+                  <cerif:Name>Faculty of Science and Technology</cerif:Name>
+                  <cerif:Acronym>TNW</cerif:Acronym>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+            </cerif:Author>
+            <cerif:Author>
+              <cerif:Person id="p-200">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>Scientist</cerif:FamilyNames>
+                  <cerif:FirstNames>Bob</cerif:FirstNames>
+                </cerif:PersonName>
+                <cerif:ORCID>0000-0002-0000-0002</cerif:ORCID>
+              </cerif:Person>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="org-20">
+                  <cerif:Name>Faculty of Engineering Technology</cerif:Name>
+                  <cerif:Acronym>ET</cerif:Acronym>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+            </cerif:Author>
+          </cerif:Authors>
+          <cerif:FileLocations>
+            <cerif:Medium>
+              <cerif:Type>fulltext</cerif:Type>
+              <cerif:Title>manuscript.pdf</cerif:Title>
+              <cerif:URI>https://ris.utwente.nl/files/aaa-111/manuscript.pdf</cerif:URI>
+              <cerif:MimeType>application/pdf</cerif:MimeType>
+              <cerif:Size>204800</cerif:Size>
+            </cerif:Medium>
+          </cerif:FileLocations>
+          <cerif:PublishedIn>
+            <cerif:Publication id="journal-001">
+              <cerif:Title>Journal of Metadata Studies</cerif:Title>
+            </cerif:Publication>
+          </cerif:PublishedIn>
+        </cerif:Publication>
+      </metadata>
+    </record>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:publications/bbb-222</identifier>
+        <datestamp>2025-06-02</datestamp>
+      </header>
+      <metadata>
+        <cerif:Publication xmlns:cerif="urn:xmlns:org:eurocris:cerif-1.6-2"
+                           xmlns:pubt="https://w3id.org/cerif/vocab/OutputTypes#"
+                           xmlns:ar="https://w3id.org/cerif/vocab/AccessRestrictions#"
+                           id="bbb-222">
+          <cerif:Title>Open Access Policies in Higher Education</cerif:Title>
+          <cerif:DOI>10.1234/synth.2025.002</cerif:DOI>
+          <cerif:URL>https://doi.org/10.1234/synth.2025.002</cerif:URL>
+          <cerif:Abstract>A comprehensive survey of OA policies.</cerif:Abstract>
+          <cerif:Status>published</cerif:Status>
+          <cerif:PublicationDate>2025-03-20</cerif:PublicationDate>
+          <cerif:Language>en</cerif:Language>
+          <cerif:Authors>
+            <cerif:Author>
+              <cerif:Person id="p-300">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>Engineer</cerif:FamilyNames>
+                  <cerif:FirstNames>Charlie</cerif:FirstNames>
+                </cerif:PersonName>
+              </cerif:Person>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="org-10">
+                  <cerif:Name>Faculty of Science and Technology</cerif:Name>
+                  <cerif:Acronym>TNW</cerif:Acronym>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+            </cerif:Author>
+          </cerif:Authors>
+        </cerif:Publication>
+      </metadata>
+    </record>
+  </ListRecords>
+</OAI-PMH>

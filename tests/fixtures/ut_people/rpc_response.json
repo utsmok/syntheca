@@ -1,0 +1,5 @@
+{
+  "result": {
+    "resultshtml": "<div class=\"ut-person-tile\"><h3 class=\"ut-person-tile__title\">Researcher, A. (Alice)</h3><div class=\"ut-person-tile__profilelink\"><a href=\"/en/persons/alice-researcher\">Profile</a></div><div class=\"ut-person-tile__mail\"><span class=\"text\">a.researcher@utwente.nl</span></div><div class=\"ut-person-tile__roles\">Associate Professor</div><div class=\"ut-person-tile__orgs\"><div>Faculty of Science and Technology</div></div></div><div class=\"ut-person-tile\"><h3 class=\"ut-person-tile__title\">Scientist, B. (Bob)</h3><div class=\"ut-person-tile__profilelink\"><a href=\"/en/persons/bob-scientist\">Profile</a></div><div class=\"ut-person-tile__mail\"><span class=\"text\">b.scientist@utwente.nl</span></div><div class=\"ut-person-tile__roles\">Assistant Professor</div><div class=\"ut-person-tile__orgs\"><div>Faculty of Engineering Technology</div></div></div>"
+  }
+}

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
+  <responseDate>2025-06-15T10:00:00Z</responseDate>
+  <request verb="ListRecords" metadataPrefix="oai_cerif_openaire">https://ris.utwente.nl/ws/oai</request>
+  <ListRecords>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:orgunits/org-10</identifier>
+        <datestamp>2025-06-01</datestamp>
+      </header>
+      <metadata>
+        <cerif:OrgUnit xmlns:cerif="urn:xmlns:org:eurocris:cerif-1.6-2" id="org-10">
+          <cerif:Type>Faculty</cerif:Type>
+          <cerif:Identifier type="ORCID">https://ror.org/006hf6230</cerif:Identifier>
+          <cerif:Name>Faculty of Science and Technology</cerif:Name>
+          <cerif:Acronym>TNW</cerif:Acronym>
+        </cerif:OrgUnit>
+      </metadata>
+    </record>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:orgunits/org-20</identifier>
+        <datestamp>2025-06-02</datestamp>
+      </header>
+      <metadata>
+        <cerif:OrgUnit xmlns:cerif="urn:xmlns:org:eurocris:cerif-1.6-2" id="org-20">
+          <cerif:Type>Faculty</cerif:Type>
+          <cerif:Name>Faculty of Engineering Technology</cerif:Name>
+          <cerif:Acronym>ET</cerif:Acronym>
+        </cerif:OrgUnit>
+      </metadata>
+    </record>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:orgunits/org-30</identifier>
+        <datestamp>2025-06-03</datestamp>
+      </header>
+      <metadata>
+        <cerif:OrgUnit xmlns:cerif="urn:xmlns:org:eurocris:cerif-1.6-2" id="org-30">
+          <cerif:Type>Department</cerif:Type>
+          <cerif:Identifier type="UUID">abc-def-123</cerif:Identifier>
+          <cerif:Name>Department of Computer Science</cerif:Name>
+          <cerif:Acronym>CS</cerif:Acronym>
+          <cerif:PartOf>
+            <cerif:OrgUnit id="org-20">
+              <cerif:Name>Faculty of Engineering Technology</cerif:Name>
+            </cerif:OrgUnit>
+          </cerif:PartOf>
+        </cerif:OrgUnit>
+      </metadata>
+    </record>
+  </ListRecords>
+</OAI-PMH>

@@ -1,0 +1,68 @@
+{
+  "_description": "Regression baseline metric definitions for syntheca pipeline outputs. These define the shape and expected ranges of quality metrics that should be tracked across pipeline runs. Actual baseline values will be populated after the first full pipeline run against a frozen input subset.",
+  "_version": "0.1.0",
+  "_created": "2026-03-26",
+  "metrics": {
+    "row_count": {
+      "description": "Expected row counts by output type",
+      "unit": "rows",
+      "outputs": {
+        "pure_publications": {
+          "baseline": null,
+          "note": "Total publications from Pure OAI-PMH"
+        },
+        "pure_persons": {
+          "baseline": null,
+          "note": "Total persons from Pure OAI-PMH"
+        },
+        "pure_orgunits": {
+          "baseline": null,
+          "note": "Total orgunits from Pure OAI-PMH"
+        },
+        "openalex_works": {
+          "baseline": null,
+          "note": "Total works matched via OpenAlex"
+        },
+        "merged_final": {
+          "baseline": null,
+          "note": "Total rows in final merged output"
+        }
+      }
+    },
+    "doi_fill_rate": {
+      "description": "Percentage of records that have a non-null DOI",
+      "unit": "percent",
+      "baseline": null,
+      "tolerance": 2.0,
+      "note": "Should remain stable unless source data changes"
+    },
+    "openalex_hit_rate": {
+      "description": "Percentage of Pure publications successfully matched to an OpenAlex work",
+      "unit": "percent",
+      "baseline": null,
+      "tolerance": 3.0,
+      "note": "Measured as matched / total_with_doi * 100"
+    },
+    "org_mapping_coverage": {
+      "description": "Percentage of authors with at least one resolved organizational unit mapping",
+      "unit": "percent",
+      "baseline": null,
+      "tolerance": 2.0,
+      "note": "Resolving faculty/department affiliations through the Pure org hierarchy"
+    },
+    "unresolved_person_count": {
+      "description": "Count of persons that could not be resolved to any UT People page or org mapping",
+      "unit": "count",
+      "baseline": null,
+      "tolerance_pct": 5.0,
+      "note": "Should decrease as disambiguation logic improves"
+    },
+    "title_fallback_count": {
+      "description": "Count of OpenAlex matches that used title-based fuzzy matching instead of DOI",
+      "unit": "count",
+      "baseline": null,
+      "tolerance_pct": 10.0,
+      "note": "Title matches are less reliable than DOI matches; track to identify drift"
+    }
+  }
+}

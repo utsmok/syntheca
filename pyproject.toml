@@ -42,6 +42,7 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py314"
+extend-exclude = ["current_marimo_monolith.py", "archive/", "syntheca/"]
 
 [tool.ruff.lint]
 select = [
@@ -54,10 +55,17 @@ select = [
     "N",
     "SIM",
     "RUF",
-    "DOC",
     "D",
 ]
 ignore=["E501"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D100", "D101", "D102", "D103", "D107"]
+"scripts/**" = ["D100", "D103"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["syntheca"]
 
@@ -66,3 +74,9 @@ known-first-party = ["syntheca"]
 asyncio_mode = "auto"
 pythonpath = ["src"]
 testpaths = ["tests"]
+addopts = "-m 'not live and not network and not slow'"
+markers = [
+    "live: tests that hit real external services (deselected by default)",
+    "network: tests that require network access (deselected by default)",
+    "slow: tests that are too slow for routine runs (deselected by default)",
+]

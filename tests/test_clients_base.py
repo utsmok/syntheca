@@ -4,7 +4,9 @@ import pytest
 from syntheca.clients.base import BaseClient
 
 
-class TestClient(BaseClient):
+class MockBaseClient(BaseClient):
+    """Test helper wrapping ``BaseClient`` with an optional mock transport."""
+
     def __init__(self, *, transport=None):
         # build AsyncClient with provided transport for testing
         super().__init__(headers={"User-Agent": "test"}, timeout=5)
@@ -15,7 +17,7 @@ class TestClient(BaseClient):
 
 @pytest.mark.asyncio
 async def test_base_client_context_manager():
-    client = TestClient()
+    client = MockBaseClient()
     async with client:
         assert client.client is not None
     # after exit AsyncClient should be closed
@@ -34,7 +36,7 @@ async def test_retry_on_429_then_success():
         return httpx.Response(200, json={"ok": True})
 
     transport = httpx.MockTransport(handler)
-    client = TestClient(transport=transport)
+    client = MockBaseClient(transport=transport)
 
     # ensure retries happen and we get 200 eventually
     async with client:

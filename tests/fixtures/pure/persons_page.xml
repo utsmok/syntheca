@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
+  <responseDate>2025-06-15T10:00:00Z</responseDate>
+  <request verb="ListRecords" metadataPrefix="oai_cerif_openaire">https://ris.utwente.nl/ws/oai</request>
+  <ListRecords>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:persons/p-100</identifier>
+        <datestamp>2025-06-01</datestamp>
+      </header>
+      <metadata>
+        <cerif:Person xmlns:cerif="urn:xmlns:org:eurocris:cerif-1.6-2" id="p-100">
+          <cerif:PersonName>
+            <cerif:FamilyNames>Researcher</cerif:FamilyNames>
+            <cerif:FirstNames>Alice</cerif:FirstNames>
+          </cerif:PersonName>
+          <cerif:ORCID>https://orcid.org/0000-0001-0000-0001</cerif:ORCID>
+          <cerif:ScopusAuthorID>55512345678</cerif:ScopusAuthorID>
+          <cerif:ResearcherID>A-1234-2020</cerif:ResearcherID>
+          <cerif:Affiliation>
+            <cerif:OrgUnit id="org-10">
+              <cerif:Name>Faculty of Science and Technology</cerif:Name>
+              <cerif:Acronym>TNW</cerif:Acronym>
+            </cerif:OrgUnit>
+          </cerif:Affiliation>
+        </cerif:Person>
+      </metadata>
+    </record>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:persons/p-200</identifier>
+        <datestamp>2025-06-02</datestamp>
+      </header>
+      <metadata>
+        <cerif:Person xmlns:cerif="urn:xmlns:org:eurocris:cerif-1.6-2" id="p-200">
+          <cerif:PersonName>
+            <cerif:FamilyNames>Scientist</cerif:FamilyNames>
+            <cerif:FirstNames>Bob</cerif:FirstNames>
+          </cerif:PersonName>
+          <cerif:ORCID>https://orcid.org/0000-0002-0000-0002</cerif:ORCID>
+          <cerif:ScopusAuthorID>55587654321</cerif:ScopusAuthorID>
+          <cerif:Affiliation>
+            <cerif:OrgUnit id="org-20">
+              <cerif:Name>Faculty of Engineering Technology</cerif:Name>
+              <cerif:Acronym>ET</cerif:Acronym>
+            </cerif:OrgUnit>
+          </cerif:Affiliation>
+          <cerif:Affiliation>
+            <cerif:OrgUnit id="org-30">
+              <cerif:Name>Department of Computer Science</cerif:Name>
+              <cerif:Acronym>CS</cerif:Acronym>
+            </cerif:OrgUnit>
+          </cerif:Affiliation>
+        </cerif:Person>
+      </metadata>
+    </record>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:persons/p-300</identifier>
+        <datestamp>2025-06-03</datestamp>
+      </header>
+      <metadata>
+        <cerif:Person xmlns:cerif="urn:xmlns:org:eurocris:cerif-1.6-2" id="p-300">
+          <cerif:PersonName>
+            <cerif:FamilyNames>Engineer</cerif:FamilyNames>
+            <cerif:FirstNames>Charlie</cerif:FirstNames>
+          </cerif:PersonName>
+        </cerif:Person>
+      </metadata>
+    </record>
+  </ListRecords>
+</OAI-PMH>

@@ -1,0 +1,136 @@
+[
+  {
+    "id": "aaa-111",
+    "type": "article",
+    "language": "en",
+    "title": "Advances in Metadata Retrieval: A Synthetic Approach",
+    "publication_date": "2025-01-15",
+    "doi": "10.1234/synth.2025.001",
+    "url": "https://doi.org/10.1234/synth.2025.001",
+    "abstract": "This paper explores synthetic metadata retrieval techniques.",
+    "volume": "42",
+    "issue": "3",
+    "start_page": "100",
+    "end_page": "115",
+    "status": "published",
+    "access_right": null,
+    "license": null,
+    "keywords": ["metadata", "retrieval"],
+    "isbn": [],
+    "issn": ["1234-5678"],
+    "publisher_name": "Elsevier",
+    "published_in_id": "journal-001",
+    "published_in_title": "Journal of Metadata Studies",
+    "part_of_id": null,
+    "part_of_title": null,
+    "event_name": null,
+    "event_acronym": null,
+    "authors": [
+      {
+        "internal_repository_id": "p-100",
+        "first_names": "Alice",
+        "family_names": "Researcher",
+        "orcid": "0000-0001-0000-0001",
+        "affiliation_id": "org-10",
+        "affiliation_name": "Faculty of Science and Technology"
+      },
+      {
+        "internal_repository_id": "p-200",
+        "first_names": "Bob",
+        "family_names": "Scientist",
+        "orcid": "0000-0002-0000-0002",
+        "affiliation_id": "org-20",
+        "affiliation_name": "Faculty of Engineering Technology"
+      }
+    ],
+    "file_locations": [
+      {
+        "type": "fulltext",
+        "title": "manuscript.pdf",
+        "uri": "https://ris.utwente.nl/files/aaa-111/manuscript.pdf",
+        "mime_type": "application/pdf",
+        "size": "204800",
+        "access": null
+      }
+    ],
+    "references": []
+  },
+  {
+    "id": "bbb-222",
+    "type": "article",
+    "language": "en",
+    "title": "Open Access Policies in Higher Education",
+    "publication_date": "2025-03-20",
+    "doi": "10.1234/synth.2025.002",
+    "url": "https://doi.org/10.1234/synth.2025.002",
+    "abstract": "A comprehensive survey of OA policies.",
+    "volume": null,
+    "issue": null,
+    "start_page": null,
+    "end_page": null,
+    "status": "published",
+    "access_right": null,
+    "license": null,
+    "keywords": [],
+    "isbn": [],
+    "issn": [],
+    "publisher_name": null,
+    "published_in_id": null,
+    "published_in_title": null,
+    "part_of_id": null,
+    "part_of_title": null,
+    "event_name": null,
+    "event_acronym": null,
+    "authors": [
+      {
+        "internal_repository_id": "p-300",
+        "first_names": "Charlie",
+        "family_names": "Engineer",
+        "orcid": null,
+        "affiliation_id": "org-10",
+        "affiliation_name": "Faculty of Science and Technology"
+      }
+    ],
+    "file_locations": [],
+    "references": []
+  },
+  {
+    "id": "ccc-333",
+    "type": "book-chapter",
+    "language": "en",
+    "title": "Machine Learning for Scholarly Data",
+    "publication_date": "2024-11-01",
+    "doi": null,
+    "url": null,
+    "abstract": "Applying ML techniques to scholarly metadata.",
+    "volume": null,
+    "issue": null,
+    "start_page": "50",
+    "end_page": "75",
+    "status": "published",
+    "access_right": null,
+    "license": null,
+    "keywords": ["machine learning", "scholarly data"],
+    "isbn": ["978-0-123456-78-9"],
+    "issn": [],
+    "publisher_name": "Springer",
+    "published_in_id": null,
+    "published_in_title": null,
+    "part_of_id": "book-001",
+    "part_of_title": "Handbook of Scholarly Communication",
+    "event_name": null,
+    "event_acronym": null,
+    "authors": [
+      {
+        "internal_repository_id": "p-100",
+        "first_names": "Alice",
+        "family_names": "Researcher",
+        "orcid": "0000-0001-0000-0001",
+        "affiliation_id": "org-10",
+        "affiliation_name": "Faculty of Science and Technology"
+      }
+    ],
+    "file_locations": [],
+    "references": []
+  }
+]
