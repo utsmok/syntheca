@@ -55,3 +55,43 @@ def write_formatted_excel(df: pl.DataFrame, path: str | pathlib.Path) -> pathlib
     dtype_formats: dict[Any, str] = {pl.Date: "YYYY-MM-DD"}
     df.write_excel(str(p), worksheet="data", autofit=True, dtype_formats=dtype_formats)
     return p
+
+
+def save_coauthorship_report(
+    report: CoauthorshipReport,  # noqa: F821 — forward ref to avoid circular import
+    output_dir: str | pathlib.Path,
+) -> list[pathlib.Path]:
+    """Write all DataFrames from a CoauthorshipReport to Parquet files.
+
+    Creates a ``coauthorship/`` subdirectory under *output_dir* and writes
+    each report component as a separate Parquet file.
+
+    Args:
+        report: A :class:`~syntheca.analysis.coauthorship.CoauthorshipReport`.
+        output_dir: Base output directory.
+
+    Returns:
+        List of paths to the written Parquet files.
+    """
+    from syntheca.analysis.coauthorship import CoauthorshipReport  # deferred import
+
+    if not isinstance(report, CoauthorshipReport):
+        raise TypeError(f"Expected CoauthorshipReport, got {type(report).__name__}")
+
+    base = pathlib.Path(output_dir) / "coauthorship"
+    base.mkdir(parents=True, exist_ok=True)
+
+    written: list[pathlib.Path] = []
+    frames = {
+        "author_publication_links": report.author_publication_links,
+        "coauthor_edges": report.coauthor_edges,
+        "ut_vs_external": report.ut_vs_external,
+        "university_rollup": report.university_rollup,
+        "company_rollup": report.company_rollup,
+        "country_rollup": report.country_rollup,
+    }
+    for name, df in frames.items():
+        path = write_parquet(df, base / f"{name}.parquet")
+        written.append(path)
+
+    return written

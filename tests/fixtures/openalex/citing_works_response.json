@@ -1,0 +1,189 @@
+{
+  "meta": {
+    "count": 7,
+    "db_response_time_ms": 38,
+    "page": null,
+    "per_page": 25,
+    "groups_count": null,
+    "next_cursor": null
+  },
+  "results": [
+    {
+      "id": "https://openalex.org/W9000000001",
+      "display_name": "Extending the Framework: A Follow-Up Study on Metadata Retrieval",
+      "doi": "https://doi.org/10.5678/citing.2025.001",
+      "title": "Extending the Framework: A Follow-Up Study on Metadata Retrieval",
+      "publication_year": 2025,
+      "publication_date": "2025-06-01",
+      "language": "en",
+      "type": "article",
+      "type_crossref": "journal-article",
+      "cited_by_count": 3,
+      "primary_location": {
+        "source": {
+          "id": "https://openalex.org/S100",
+          "display_name": "Journal of Information Science",
+          "host_organization_name": "SAGE Publications",
+          "type": "journal"
+        }
+      },
+      "authorships": [
+        {
+          "author": {
+            "id": "https://openalex.org/A200",
+            "display_name": "Jane Scholar"
+          },
+          "raw_author_name": "Jane Scholar",
+          "is_corresponding": true,
+          "author_position": "first"
+        }
+      ]
+    },
+    {
+      "id": "https://openalex.org/W9000000002",
+      "display_name": "National Policy Report on Open Science Indicators 2025",
+      "doi": "https://doi.org/10.9999/policy.2025.report",
+      "title": "National Policy Report on Open Science Indicators 2025",
+      "publication_year": 2025,
+      "publication_date": "2025-04-10",
+      "language": "en",
+      "type": "report",
+      "type_crossref": "report",
+      "cited_by_count": 0,
+      "primary_location": {
+        "source": {
+          "id": "https://openalex.org/S200",
+          "display_name": "Ministry of Education Policy Series",
+          "host_organization_name": "Dutch Ministry of Education",
+          "type": "repository"
+        }
+      },
+      "authorships": [
+        {
+          "author": {
+            "id": "https://openalex.org/A300",
+            "display_name": "Government Policy Office"
+          },
+          "raw_author_name": "Government Policy Office",
+          "is_corresponding": false,
+          "author_position": "first"
+        }
+      ]
+    },
+    {
+      "id": "https://openalex.org/W9000000003",
+      "display_name": "Machine Learning Applications in Scholarly Data Processing",
+      "doi": "https://doi.org/10.5678/citing.2025.003",
+      "title": "Machine Learning Applications in Scholarly Data Processing",
+      "publication_year": 2025,
+      "publication_date": "2025-07-15",
+      "language": "en",
+      "type": "article",
+      "type_crossref": "journal-article",
+      "cited_by_count": 8,
+      "primary_location": {
+        "source": {
+          "id": "https://openalex.org/S300",
+          "display_name": "IEEE Transactions on Knowledge and Data Engineering",
+          "host_organization_name": "IEEE",
+          "type": "journal"
+        }
+      },
+      "authorships": []
+    },
+    {
+      "id": "https://openalex.org/W9000000004",
+      "display_name": "European Commission Recommendation on Responsible Use of Research Metadata",
+      "doi": "https://doi.org/10.2777/ec.2025.metadata",
+      "title": "European Commission Recommendation on Responsible Use of Research Metadata",
+      "publication_year": 2025,
+      "publication_date": "2025-03-01",
+      "language": "en",
+      "type": "report",
+      "type_crossref": "report",
+      "cited_by_count": 15,
+      "primary_location": {
+        "source": {
+          "id": "https://openalex.org/S400",
+          "display_name": "EUR-Lex",
+          "host_organization_name": "European Commission",
+          "type": "repository"
+        }
+      },
+      "authorships": [
+        {
+          "author": {
+            "id": "https://openalex.org/A400",
+            "display_name": "Directorate-General for Research and Innovation"
+          },
+          "raw_author_name": "Directorate-General for Research and Innovation",
+          "is_corresponding": false,
+          "author_position": "first"
+        }
+      ]
+    },
+    {
+      "id": "https://openalex.org/W9000000005",
+      "display_name": "WHO Technical Guidelines for Health Research Data Sharing",
+      "doi": null,
+      "title": "WHO Technical Guidelines for Health Research Data Sharing",
+      "publication_year": 2024,
+      "publication_date": "2024-11-20",
+      "language": "en",
+      "type": "standard",
+      "type_crossref": "standard",
+      "cited_by_count": 30,
+      "primary_location": {
+        "source": {
+          "id": "https://openalex.org/S500",
+          "display_name": "WHO Technical Report Series",
+          "host_organization_name": "World Health Organization",
+          "type": "repository"
+        }
+      },
+      "authorships": []
+    },
+    {
+      "id": "https://openalex.org/W9000000006",
+      "display_name": "Parliamentary Question on University Research Output Metrics",
+      "doi": null,
+      "title": "Parliamentary Question on University Research Output Metrics",
+      "publication_year": 2025,
+      "publication_date": "2025-02-14",
+      "language": "en",
+      "type": "other",
+      "type_crossref": "other",
+      "cited_by_count": 0,
+      "primary_location": {
+        "source": {
+          "id": "https://openalex.org/S600",
+          "display_name": "Tweede Kamer Proceedings",
+          "host_organization_name": "Dutch Parliament",
+          "type": "repository"
+        }
+      },
+      "authorships": []
+    },
+    {
+      "id": "https://openalex.org/W9000000007",
+      "display_name": "A Novel Approach to Citation Network Analysis",
+      "doi": "https://doi.org/10.5678/citing.2025.007",
+      "title": "A Novel Approach to Citation Network Analysis",
+      "publication_year": 2025,
+      "publication_date": "2025-08-01",
+      "language": "en",
+      "type": "article",
+      "type_crossref": "journal-article",
+      "cited_by_count": 1,
+      "primary_location": {
+        "source": {
+          "id": "https://openalex.org/S700",
+          "display_name": "Scientometrics",
+          "host_organization_name": "Springer Nature",
+          "type": "journal"
+        }
+      },
+      "authorships": []
+    }
+  ]
+}
