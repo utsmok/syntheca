@@ -1,0 +1,225 @@
+{
+  "header": {
+    "numFound": 2,
+    "maxScore": 8.5,
+    "queryTime": 42,
+    "pageSize": 10,
+    "nextCursor": "AoE/RGRlZHVwX3Jlc3VsdF9fXzo6YWJjMTIz"
+  },
+  "results": [
+    {
+      "id": "doi_dedup___::abc123def456",
+      "mainTitle": "Assembly theory explains and quantifies selection and evolution",
+      "subTitle": null,
+      "type": "publication",
+      "publicationDate": "2023-10-04",
+      "publisher": "Springer Science and Business Media LLC",
+      "language": {
+        "code": "eng",
+        "label": "English"
+      },
+      "authors": [
+        {
+          "fullName": "Abhishek Sharma",
+          "name": "Abhishek",
+          "surname": "Sharma",
+          "rank": 1,
+          "pid": null
+        },
+        {
+          "fullName": "Leroy Cronin",
+          "name": "Leroy",
+          "surname": "Cronin",
+          "rank": 2,
+          "pid": {
+            "id": {
+              "scheme": "orcid",
+              "value": "0000-0001-8035-5757"
+            },
+            "provenance": null
+          }
+        }
+      ],
+      "pids": [
+        {
+          "scheme": "doi",
+          "value": "10.1038/s41586-023-06600-9"
+        },
+        {
+          "scheme": "pmid",
+          "value": "37794189"
+        }
+      ],
+      "bestAccessRight": {
+        "code": "c_abf2",
+        "label": "OPEN",
+        "scheme": "http://vocabularies.coar-repositories.org/documentation/access_rights/"
+      },
+      "openAccessColor": "hybrid",
+      "container": {
+        "name": "Nature",
+        "issnPrinted": "0028-0836",
+        "issnOnline": "1476-4687"
+      },
+      "subjects": [
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Assembly theory"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Molecular complexity"
+          },
+          "provenance": null
+        }
+      ],
+      "descriptions": [
+        "Scientists have grappled with reconciling biological evolution with the ideas of determinism and reductionism."
+      ],
+      "indicators": {
+        "bipIndicators": {
+          "citationCount": 150.0,
+          "influence": 0.85,
+          "popularity": 0.92,
+          "impulse": 0.78,
+          "citationClass": "C2",
+          "influenceClass": "C2",
+          "impulseClass": "C2",
+          "popularityClass": "C1"
+        },
+        "usageCounts": {
+          "downloads": 5200,
+          "views": 18400
+        }
+      },
+      "instances": [
+        {
+          "pids": [
+            {
+              "scheme": "doi",
+              "value": "10.1038/s41586-023-06600-9"
+            }
+          ],
+          "license": "CC BY",
+          "accessRight": {
+            "code": "c_abf2",
+            "label": "OPEN",
+            "scheme": "http://vocabularies.coar-repositories.org/documentation/access_rights/",
+            "openAccessRoute": "hybrid"
+          },
+          "type": "Article",
+          "urls": [
+            "https://doi.org/10.1038/s41586-023-06600-9"
+          ],
+          "publicationDate": "2023-10-04",
+          "refereed": "peerReviewed",
+          "hostedBy": {
+            "key": "issn___print::f77babb14c4bed449c5b3efe5347c4c5",
+            "value": "Nature"
+          },
+          "collectedFrom": {
+            "key": "openaire____::081b82f96300b6a6e3d282bad31cb6e2",
+            "value": "Crossref"
+          }
+        }
+      ],
+      "sources": [],
+      "collectedFrom": [
+        {
+          "key": "openaire____::081b82f96300b6a6e3d282bad31cb6e2",
+          "value": "Crossref"
+        }
+      ],
+      "isGreen": true,
+      "isInDiamondJournal": false,
+      "publiclyFunded": false,
+      "originalIds": [
+        "50|doi_dedup___::abc123def456"
+      ],
+      "projects": [],
+      "organizations": [],
+      "communities": [],
+      "countries": null,
+      "coverages": null,
+      "contactGroups": null,
+      "contactPeople": null,
+      "dateOfCollection": null,
+      "documentationUrls": null,
+      "embargoEndDate": null,
+      "formats": null,
+      "geoLocations": null,
+      "lastUpdateTimeStamp": null,
+      "programmingLanguage": null,
+      "size": null,
+      "tools": null,
+      "version": null,
+      "contributors": null
+    },
+    {
+      "id": "doi_dedup___::xyz789",
+      "mainTitle": "A second test publication record",
+      "subTitle": null,
+      "type": "publication",
+      "publicationDate": "2024-01-15",
+      "publisher": "Elsevier BV",
+      "language": {
+        "code": "eng",
+        "label": "English"
+      },
+      "authors": [
+        {
+          "fullName": "Jane Doe",
+          "name": "Jane",
+          "surname": "Doe",
+          "rank": 1,
+          "pid": null
+        }
+      ],
+      "pids": [
+        {
+          "scheme": "doi",
+          "value": "10.1016/j.example.2024.001"
+        }
+      ],
+      "bestAccessRight": {
+        "code": "c_f1cf",
+        "label": "RESTRICTED",
+        "scheme": "http://vocabularies.coar-repositories.org/documentation/access_rights/"
+      },
+      "openAccessColor": null,
+      "container": null,
+      "subjects": [],
+      "descriptions": [],
+      "indicators": null,
+      "instances": [],
+      "sources": [],
+      "collectedFrom": [],
+      "isGreen": false,
+      "isInDiamondJournal": false,
+      "publiclyFunded": false,
+      "originalIds": [],
+      "projects": [],
+      "organizations": [],
+      "communities": [],
+      "countries": null,
+      "coverages": null,
+      "contactGroups": null,
+      "contactPeople": null,
+      "dateOfCollection": null,
+      "documentationUrls": null,
+      "embargoEndDate": null,
+      "formats": null,
+      "geoLocations": null,
+      "lastUpdateTimeStamp": null,
+      "programmingLanguage": null,
+      "size": null,
+      "tools": null,
+      "version": null,
+      "contributors": null
+    }
+  ]
+}
