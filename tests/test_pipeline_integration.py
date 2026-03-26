@@ -1,22 +1,20 @@
-import os
 import pathlib
 from typing import cast
 
 import polars as pl
 import pytest
 
-from syntheca.pipeline import Pipeline
-from syntheca.config import settings
-from syntheca.utils.persistence import save_dataframe_parquet
 from syntheca.clients.openalex import OpenAlexClient
 from syntheca.clients.pure_oai import PureOAIClient
 from syntheca.clients.ut_people import UTPeopleClient
+from syntheca.config import settings
+from syntheca.pipeline import Pipeline
 
 
 class FakePureClient:
     async def get_all_records(self, collections):
         return {
-            "publications": [
+            "openaire_cris_publications": [
                 {
                     "id": "o1",
                     "title": "Integration test publication",
@@ -72,7 +70,7 @@ async def test_pipeline_integration_mock_end_to_end(tmp_path: pathlib.Path):
     settings.cache_dir = tmp_path
     settings.persist_intermediate = True
 
-    # Persist a minimal orgs DataFrame so the pipeline can resolve hierarchy
+    # Provide a minimal orgs DataFrame for resolving hierarchy
     orgs = pl.DataFrame(
         {
             "internal_repository_id": ["org1"],
@@ -81,7 +79,6 @@ async def test_pipeline_integration_mock_end_to_end(tmp_path: pathlib.Path):
             "tnw": [True],
         }
     )
-    save_dataframe_parquet(orgs, "openaire_cris_orgunits")
 
     p = Pipeline()
     # Provide authors_df so pipeline can map and aggregate author flags
@@ -95,9 +92,10 @@ async def test_pipeline_integration_mock_end_to_end(tmp_path: pathlib.Path):
         }
     )
     merged = await p.run(
-        oils_df=None,
-        full_df=None,
+        pure_publications_df=None,
+        openalex_works_df=None,
         authors_df=authors_df,
+        orgunits_df=orgs,
         output_dir=tmp_path,
         pure_client=cast(PureOAIClient, FakePureClient()),
         openalex_client=cast(OpenAlexClient, FakeOpenAlexClient()),
@@ -115,6 +113,8 @@ async def test_pipeline_integration_mock_end_to_end(tmp_path: pathlib.Path):
     settings.persist_intermediate = False
 
 
+@pytest.mark.live
+@pytest.mark.network
 @pytest.mark.asyncio
 async def test_pipeline_integration_live_minimal(tmp_path: pathlib.Path):
     # Use small inputs to avoid large network activity
@@ -143,8 +143,8 @@ async def test_pipeline_integration_live_minimal(tmp_path: pathlib.Path):
     # Use the real OpenAlex client to fetch one ID; other clients are not used to avoid large downloads.
     openalex_client = OpenAlexClient()
     merged = await p.run(
-        oils_df=oils,
-        full_df=None,
+        pure_publications_df=oils,
+        openalex_works_df=None,
         authors_df=authors,
         output_dir=tmp_path,
         openalex_client=openalex_client,

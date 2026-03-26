@@ -148,6 +148,7 @@ class OpenAlexClient(BaseClient):
         return results
 
     async def get_works_by_title(self, title: str) -> list[Work]:
+        """Search OpenAlex for works matching the given title."""
         # Try to read cached title-based searches if enabled
         if settings.use_cache_for_retrieval:
             try:
@@ -224,6 +225,14 @@ class OpenAlexClient(BaseClient):
         by the legacy monolith transformations but intentionally keeps the
         output compact and JSON-friendly.
 
+        .. note::
+            This method is **not** called automatically by ``Pipeline.run()``.
+            The pipeline converts raw API responses to typed ``Work`` dataclasses
+            via ``dacite.from_dict`` and uses those directly.  This method exists
+            as a convenience for ad-hoc scripts or notebooks that need a flat,
+            simplified dict representation of OpenAlex records (e.g., for export
+            to CSV/Excel without the full dataclass schema).
+
         Args:
             works (list[dict]): A list of OpenAlex work result dictionaries.
 
@@ -288,3 +297,49 @@ class OpenAlexClient(BaseClient):
             cleaned.append(wclean)
 
         return cleaned
+
+    # ------------------------------------------------------------------
+    # Citing-works retrieval (cursor-paginated)
+    # ------------------------------------------------------------------
+
+    async def get_citing_works(
+        self,
+        openalex_id: str,
+        *,
+        per_page: int = 50,
+        max_pages: int = 200,
+    ) -> list[dict]:
+        """Fetch all works that cite the given OpenAlex work ID.
+
+        Uses the ``filter=cites:{id}`` parameter with cursor-based
+        pagination to retrieve the full list of citing works.
+
+        Args:
+            openalex_id: Full OpenAlex work URL or short ID (e.g. ``W123``).
+            per_page: Results per page (max 200 per OpenAlex docs).
+            max_pages: Safety cap to avoid runaway loops.
+
+        Returns:
+            A flat list of raw OpenAlex work dicts.
+        """
+        url = f"{self.BASE}/works"
+        params: dict[str, str | int] = {
+            "filter": f"cites:{openalex_id}",
+            "per-page": min(per_page, 200),
+            "cursor": "*",
+        }
+
+        all_results: list[dict] = []
+        for _ in range(max_pages):
+            resp = await self.request("GET", url, params=params)
+            data = resp.json()
+            results = data.get("results") or []
+            all_results.extend(results)
+
+            meta = data.get("meta", {})
+            next_cursor = meta.get("next_cursor")
+            if not next_cursor or not results:
+                break
+            params["cursor"] = next_cursor
+
+        return all_results

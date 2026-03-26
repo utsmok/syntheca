@@ -150,7 +150,7 @@ def parse_scraped_org_details(authors_df: pl.DataFrame) -> pl.DataFrame:
 
 
 def apply_manual_corrections(authors_df: pl.DataFrame) -> pl.DataFrame:
-    """Applies manual affiliation corrections from `corrections.json`.
+    """Apply manual affiliation corrections from `corrections.json`.
 
     The corrections file contains a list of dicts with `name` and
     `affiliations` lists (string-affiliation short codes). Corrections are

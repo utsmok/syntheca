@@ -6,36 +6,83 @@ merge/deduplicate datasets using DOI as primary key with title fallback.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 import polars as pl
+from loguru import logger
 
 from syntheca.processing.cleaning import normalize_doi
 
+# ---------------------------------------------------------------------------
+# Merge statistics
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class MergeStats:
+    """Structured report for a merge operation."""
+
+    operation: str = ""
+    input_left: int = 0
+    input_right: int = 0
+    output_rows: int = 0
+    matched: int = 0
+    unmatched_left: int = 0
+    unmatched_right: int = 0
+    errors: list[str] = field(default_factory=list)
+
+    @property
+    def summary(self) -> str:
+        """Human-readable summary of the merge operation."""
+        return (
+            f"{self.operation}: left={self.input_left} right={self.input_right} "
+            f"output={self.output_rows} matched={self.matched} "
+            f"unmatched_left={self.unmatched_left} unmatched_right={self.unmatched_right} "
+            f"errors={len(self.errors)}"
+        )
+
 
 def merge_datasets(
-    oils_df: pl.DataFrame,
-    full_df: pl.DataFrame,
-    doi_col_oils: str = "doi",
-    doi_col_full: str = "doi",
+    pure_publications_df: pl.DataFrame,
+    openalex_works_df: pl.DataFrame,
+    doi_col_pure: str = "doi",
+    doi_col_openalex: str = "doi",
 ) -> pl.DataFrame:
     """Join two DataFrames on normalized DOIs.
 
     Both DataFrames will have their DOI columns normalized (via `normalize_doi`) and
-    then a left join of `full_df` onto `oils_df` is performed.
+    then a left join of `openalex_works_df` onto `pure_publications_df` is performed.
 
     Args:
-        oils_df (pl.DataFrame): The primary publications DataFrame (e.g., Pure OAI).
-        full_df (pl.DataFrame): Additional works DataFrame to merge in (e.g., OpenAlex).
-        doi_col_oils (str): Column name for DOI in `oils_df`.
-        doi_col_full (str): Column name for DOI in `full_df`.
+        pure_publications_df (pl.DataFrame): The primary publications DataFrame (e.g., Pure OAI).
+        openalex_works_df (pl.DataFrame): Additional works DataFrame to merge in (e.g., OpenAlex).
+        doi_col_pure (str): Column name for DOI in `pure_publications_df`.
+        doi_col_openalex (str): Column name for DOI in `openalex_works_df`.
 
     Returns:
         pl.DataFrame: The joined DataFrame containing fields from both inputs.
 
     """
-    oils = normalize_doi(oils_df, doi_col_oils, new_col="_norm_doi")
-    full = normalize_doi(full_df, doi_col_full, new_col="_norm_doi")
+    stats = MergeStats(
+        operation="merge_datasets",
+        input_left=openalex_works_df.height,
+        input_right=pure_publications_df.height,
+    )
+    pure = normalize_doi(pure_publications_df, doi_col_pure, new_col="_norm_doi")
+    oa = normalize_doi(openalex_works_df, doi_col_openalex, new_col="_norm_doi")
 
-    merged = full.join(oils, left_on="_norm_doi", right_on="_norm_doi", how="left", suffix="_oils")
+    merged = oa.join(pure, left_on="_norm_doi", right_on="_norm_doi", how="left", suffix="_pure")
+    stats.output_rows = merged.height
+
+    # Count matched/unmatched
+    if "_norm_doi" in merged.columns:
+        has_match = merged.filter(
+            pl.col("_norm_doi").is_not_null() & (pl.col("_norm_doi") != "")
+        ).height
+        stats.matched = has_match
+        stats.unmatched_left = stats.input_left - has_match
+
+    logger.debug("merge_datasets: {}", stats.summary)
     return merged
 
 
@@ -200,69 +247,46 @@ def join_authors_and_publications(
 
     merge_cols_str = [c for c in ["orcid"] if c in author_details.columns]
 
-    agg_exprs = [pl.col(col).any().alias(col) for col in merge_cols_bool]
-    agg_exprs.extend(
-        [
-            pl.col(col)
-            .str.split(by=", ")
-            .flatten()
-            .unique()
-            .replace("", None)
-            .drop_nulls()
-            .list.join(", ")
-            .alias(col)
-            for col in merge_cols_lists
-        ]
+    # ---- Polars-native aggregation (replaces Python dict loop) ----
+    agg_exprs: list[pl.Expr] = []
+    for col in merge_cols_bool:
+        agg_exprs.append(pl.col(col).any().alias(col))
+    for col in merge_cols_lists:
+        # Concatenate all string values in the group, then post-process
+        agg_exprs.append(pl.col(col).cast(pl.Utf8).fill_null("").str.join(delimiter=",").alias(col))
+    for col in merge_cols_str:
+        agg_exprs.append(pl.col(col).drop_nulls().unique().alias(col + "s"))
+
+    if not agg_exprs:
+        logger.debug("join_authors_and_publications: no columns to aggregate")
+        return publications_df
+
+    merged_author_data = author_details.group_by("pure_id").agg(agg_exprs)
+
+    # Post-process list columns: split concatenated strings, deduplicate, rejoin
+    for col in merge_cols_lists:
+        if col in merged_author_data.columns:
+            merged_author_data = merged_author_data.with_columns(
+                pl.col(col)
+                .str.split(by=",")
+                .list.eval(pl.element().str.strip_chars().filter(pl.element() != ""))
+                .list.unique()
+                .list.sort()
+                .list.join(", ")
+                .alias(col)
+            )
+            # Convert empty strings to null
+            merged_author_data = merged_author_data.with_columns(
+                pl.when(pl.col(col) == "").then(None).otherwise(pl.col(col)).alias(col)
+            )
+
+    stats = MergeStats(
+        operation="join_authors_and_publications",
+        input_left=publications_df.height,
+        input_right=authors_df.height,
     )
-    agg_exprs.extend([pl.col(col).drop_nulls().unique().alias(col + "s") for col in merge_cols_str])
-
-    # Build aggregation using Python to avoid complex polars list/str coercions in the groupby
-    grouped = {}
-    for row in author_details.to_dicts():
-        key = row.get("pure_id")
-        if key not in grouped:
-            grouped[key] = {"pure_id": key}
-            # initialize booleans
-            for col in merge_cols_bool:
-                grouped[key][col] = False
-            # initialize lists
-            for col in merge_cols_lists:
-                grouped[key][col] = []
-            for col in merge_cols_str:
-                grouped[key][col + "s"] = []
-        # aggregate booleans
-        for col in merge_cols_bool:
-            if row.get(col):
-                grouped[key][col] = True
-        # aggregate lists
-        for col in merge_cols_lists:
-            val = row.get(col)
-            if val:
-                if isinstance(val, list):
-                    grouped[key][col].extend(val)
-                else:
-                    # split strings on comma
-                    grouped[key][col].extend([x.strip() for x in str(val).split(",") if x.strip()])
-        for col in merge_cols_str:
-            v = row.get(col)
-            if v:
-                grouped[key][col + "s"].append(v)
-
-    # prepare list of dicts
-    merged_records = []
-    for k, v in grouped.items():
-        rec = {"pure_id": k}
-        for col in merge_cols_bool:
-            rec[col] = v.get(col, False)
-        for col in merge_cols_lists:
-            items = list({x for x in v.get(col, []) if x})
-            rec[col] = ", ".join(sorted(items)) if items else None
-        for col in merge_cols_str:
-            items = list({x for x in v.get(col + "s", []) if x})
-            rec[col + "s"] = items if items else None
-        merged_records.append(rec)
-
-    merged_author_data = pl.from_dicts(merged_records) if merged_records else pl.DataFrame()
 
     final_df = publications_df.join(merged_author_data, on="pure_id", how="left")
+    stats.output_rows = final_df.height
+    logger.debug("join_authors_and_publications: {}", stats.summary)
     return final_df

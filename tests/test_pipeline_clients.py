@@ -13,7 +13,7 @@ from syntheca.pipeline import Pipeline
 class FakePureClient:
     async def get_all_records(self, collections):
         return {
-            "publications": [
+            "openaire_cris_publications": [
                 {
                     "id": "oils:1",
                     "title": "A sample oils publication",
@@ -56,8 +56,8 @@ async def test_pipeline_ingest_pure(tmp_path: pathlib.Path):
     pure = FakePureClient()
     p = Pipeline()
     merged = await p.run(
-        oils_df=None,
-        full_df=pl.DataFrame(),
+        pure_publications_df=None,
+        openalex_works_df=pl.DataFrame(),
         output_dir=tmp_path,
         pure_client=cast(PureOAIClient, pure),
     )
@@ -70,8 +70,8 @@ async def test_pipeline_ingest_openalex(tmp_path: pathlib.Path):
     openalex_client = FakeOpenAlexClient()
     p = Pipeline()
     merged = await p.run(
-        oils_df=pl.DataFrame(),
-        full_df=None,
+        pure_publications_df=pl.DataFrame(),
+        openalex_works_df=None,
         output_dir=tmp_path,
         openalex_client=cast(OpenAlexClient, openalex_client),
         openalex_ids=["10.1/test"],
@@ -85,8 +85,8 @@ async def test_pipeline_ingest_ut_people(tmp_path: pathlib.Path):
     ut = FakeUTPeopleClient()
     p = Pipeline()
     merged = await p.run(
-        oils_df=pl.DataFrame(),
-        full_df=pl.DataFrame(),
+        pure_publications_df=pl.DataFrame(),
+        openalex_works_df=pl.DataFrame(),
         output_dir=tmp_path,
         ut_people_client=cast(UTPeopleClient, ut),
         people_search_names=["john.doe"],

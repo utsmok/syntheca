@@ -23,7 +23,7 @@ async def test_pipeline_merge_and_write(tmp_path: pathlib.Path):
     )
 
     p = Pipeline()
-    merged = await p.run(oils_df=oils, full_df=full, output_dir=tmp_path)
+    merged = await p.run(pure_publications_df=oils, openalex_works_df=full, output_dir=tmp_path)
     # Expect merged contains the 'extra' column and has merged rows
     assert "extra" in merged.columns
     assert (tmp_path / "merged.parquet").exists()

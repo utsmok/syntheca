@@ -11,6 +11,7 @@ from typing import Any
 
 import polars as pl
 import xmltodict
+from loguru import logger
 from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
@@ -184,7 +185,7 @@ class PureOAIClient(BaseClient):
             pers (dict): Raw parsed person dictionary.
 
         Returns:
-            dict: Normalized person dictionary with `id`, `family_names`, `first_names`, and `orcid`.
+            dict: Normalized person dictionary with identification and affiliation fields.
 
         """
         # Some responses include a wrapper key like 'cerif:Person' or 'openaire_cris:person'
@@ -192,6 +193,12 @@ class PureOAIClient(BaseClient):
             pers = pers.get("cerif:Person") or pers
         elif isinstance(pers, dict) and "openaire_cris:person" in pers:
             pers = pers.get("openaire_cris:person") or pers
+
+        # Parse affiliations list
+        affiliations = self._parse_person_affiliations(
+            self._ensure_list(pers.get("cerif:Affiliation"))
+        )
+
         result = {
             "id": self._safe_get(pers, ["@id"]),
             "family_names": self._get_text(
@@ -201,8 +208,36 @@ class PureOAIClient(BaseClient):
                 self._safe_get(pers, ["cerif:PersonName", "cerif:FirstNames"])
             ),
             "orcid": self._get_text(pers.get("cerif:ORCID")),
+            "scopus_author_id": self._get_text(pers.get("cerif:ScopusAuthorID")),
+            "researcher_id": self._get_text(pers.get("cerif:ResearcherID")),
+            "affiliations": affiliations,
         }
         return result
+
+    def _parse_person_affiliations(self, affil_list: list) -> list[dict]:
+        """Parse a list of person affiliation nodes into dicts.
+
+        Each affiliation wraps a ``cerif:OrgUnit`` with id, name and acronym.
+
+        Args:
+            affil_list (list): List of affiliation dicts from CERIF XML.
+
+        Returns:
+            list[dict]: Parsed affiliation entries.
+
+        """
+        out: list[dict] = []
+        for affil in affil_list:
+            if not isinstance(affil, dict):
+                continue
+            org = affil.get("cerif:OrgUnit") or {}
+            out.append(
+                {
+                    "affiliation_id": self._safe_get(org, ["@id"]),
+                    "affiliation_name": self._get_text(org.get("cerif:Name")),
+                }
+            )
+        return out
 
     def _parse_file_locations(self, file_locations: dict | None) -> list[dict] | None:
         """Parse the `cerif:FileLocations` node into a list of medium dicts.
@@ -335,7 +370,7 @@ class PureOAIClient(BaseClient):
             org (dict): Raw organization entry from CERIF XML.
 
         Returns:
-            dict: Normalized organization unit with `id`, `name`, and `acronym`.
+            dict: Normalized organization unit with hierarchy and identifier fields.
 
         """
         # Unwrap if server returned a wrapper like 'cerif:OrgUnit' or 'openaire_cris:orgunit'
@@ -344,13 +379,28 @@ class PureOAIClient(BaseClient):
         elif isinstance(org, dict) and "openaire_cris:orgunit" in org:
             org = org.get("openaire_cris:orgunit") or org
 
+        # Parse cerif:Identifier which has @type attribute and #text value
+        identifier_raw = org.get("cerif:Identifier")
+        identifier = self._get_text(identifier_raw)
+        identifier_type = None
+        if isinstance(identifier_raw, dict):
+            identifier_type = identifier_raw.get("@type")
+
+        # Parse cerif:PartOf -> cerif:OrgUnit -> @id
+        part_of = self._safe_get(org, ["cerif:PartOf", "cerif:OrgUnit"]) or {}
+        part_of_org_id = self._safe_get(part_of, ["@id"]) if part_of else None
+        part_of_name = self._get_text(part_of.get("cerif:Name")) if part_of else None
+
         result = {
             "id": self._safe_get(org, ["@id"]),
+            "type": self._get_text(org.get("cerif:Type")),
+            "identifier": identifier,
+            "identifier_type": identifier_type,
             "name": self._get_text(org.get("cerif:Name")),
             "acronym": self._get_text(org.get("cerif:Acronym")),
+            "part_of_org_id": part_of_org_id,
+            "part_of_name": part_of_name,
         }
-
-        # Debug logs removed: parsing returns `result` mapping
         return result
 
     async def get_all_records(self, collections: list[str]) -> dict[str, list[dict]]:
@@ -427,7 +477,8 @@ class PureOAIClient(BaseClient):
                 # resumption token
                 token = records.get("resumptionToken")
                 if token:
-                    token_text = token.get("#text")
+                    # xmltodict returns a dict when attributes exist, plain str otherwise
+                    token_text = token.get("#text") if isinstance(token, dict) else token
                     if token_text:
                         url = f"{resume_url}&resumptionToken={token_text}"
                         continue
@@ -446,9 +497,14 @@ class PureOAIClient(BaseClient):
                     if df is not None and df.height:
                         results[collection] = df.to_dicts()
                         continue
-                except Exception:
-                    # fall back to live retrieval if cache load fails
-                    pass
+                except (FileNotFoundError, OSError) as exc:
+                    logger.debug("Cache miss for pure_{}: {}", collection, exc)
+                except (pl.exceptions.ComputeError, pl.exceptions.SchemaError) as exc:
+                    logger.warning(
+                        "Corrupt cache for pure_{}, falling back to live retrieval: {}",
+                        collection,
+                        exc,
+                    )
             # Do not pass enumerated positions — allocate unique positions globally using get_next_position
             results.update(await get_collection_data(collection, position=None))
 
@@ -460,8 +516,11 @@ class PureOAIClient(BaseClient):
                     try:
                         df = pl.from_dicts(recs)
                         save_dataframe_parquet(df, f"pure_{col}")
-                    except Exception:
-                        # ignore saving errors
-                        pass
+                    except (OSError, pl.exceptions.ComputeError, pl.exceptions.SchemaError) as exc:
+                        logger.warning(
+                            "Failed to persist intermediate parquet for pure_{}: {}",
+                            col,
+                            exc,
+                        )
 
         return results

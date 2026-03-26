@@ -1,6 +1,6 @@
 import polars as pl
 
-from syntheca.processing.enrichment import parse_scraped_org_details, apply_manual_corrections
+from syntheca.processing.enrichment import apply_manual_corrections, parse_scraped_org_details
 
 
 def test_parse_scraped_org_details_creates_columns():

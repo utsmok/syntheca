@@ -1,10 +1,10 @@
 import polars as pl
 import pytest
 
+from syntheca.clients.openalex import OpenAlexClient
+from syntheca.clients.pure_oai import PureOAIClient
 from syntheca.config import settings
 from syntheca.utils.persistence import save_dataframe_parquet
-from syntheca.clients.pure_oai import PureOAIClient
-from syntheca.clients.openalex import OpenAlexClient
 
 
 @pytest.mark.asyncio

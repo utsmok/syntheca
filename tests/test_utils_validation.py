@@ -1,5 +1,6 @@
 import polars as pl
-from syntheca.utils.validation import normalize_str_column, ensure_columns, normalize_orgs_df
+
+from syntheca.utils.validation import ensure_columns, normalize_orgs_df, normalize_str_column
 
 
 def test_normalize_str_column_list_and_none():

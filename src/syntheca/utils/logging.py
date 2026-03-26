@@ -30,6 +30,3 @@ def configure_logging() -> None:
 
     # Rotating file log for debugging and persistence
     logger.add(str(log_file), rotation="10 MB", retention="14 days", level="DEBUG")
-
-
-configure_logging()

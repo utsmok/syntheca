@@ -1,14 +1,19 @@
-"""Example script to run a full end-to-end pipeline using the syntheca library.
+"""Run the full Syntheca ETL pipeline with optional parity validation.
 
-This script demonstrates how to use the library to:
-1. Retrieve data from Pure OAI-PMH collections
-2. Clean and merge authors/orgs into publications
-3. Enrich authors via UT People (RPC + profile scraping)
-4. Lookup publications in OpenAlex by DOI
-5. Run cleaning/enrichment/merging pipeline
-6. Export the results to parquet and Excel
+Entrypoint script that:
+1. Retrieves data from Pure OAI-PMH collections
+2. Cleans and merges authors/orgs into publications
+3. Enriches authors via UT People (RPC + profile scraping)
+4. Looks up publications in OpenAlex by DOI
+5. Runs cleaning/enrichment/merging pipeline
+6. Exports the results to parquet and Excel
+7. Optionally validates outputs against the regression baseline
 
 Use at your own risk; network calls are made and you must have an internet connection.
+
+Runnable entrypoints:
+    python scripts/run_full_pipeline.py [--output-dir ./output] [--check-parity]
+    python -m syntheca.pipeline  (planned — not yet wired)
 """
 
 from __future__ import annotations
@@ -26,9 +31,16 @@ from syntheca.clients.ut_people import UTPeopleClient
 from syntheca.pipeline import Pipeline
 from syntheca.utils.logging import configure_logging
 
+logger = __import__("loguru").logger
+
+_BASELINE_PATH = (
+    pathlib.Path(__file__).resolve().parent.parent / "tests" / "regression_baseline.json"
+)
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser("Run full syntheca pipeline scratch script")
+    """Parse CLI arguments."""
+    parser = argparse.ArgumentParser("Run full syntheca pipeline")
     parser.add_argument("--output-dir", type=pathlib.Path, default=pathlib.Path("./output"))
     parser.add_argument(
         "--collections",
@@ -44,6 +56,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--skip-people", action="store_true", help="Skip UT People enrichment calls"
+    )
+    parser.add_argument(
+        "--check-parity",
+        action="store_true",
+        help="Run parity validation against regression baseline after pipeline completes",
     )
     return parser.parse_args()
 
@@ -61,8 +78,8 @@ async def main() -> None:
         OpenAlexClient() as openalex_client,
         UTPeopleClient() as ut_client,
     ):
-        print(
-            "Retrieving data from Pure OAI-PMH concurrently: {}".format(",".join(args.collections))
+        logger.info(
+            "Retrieving data from Pure OAI-PMH concurrently: {}", ",".join(args.collections)
         )
         # concurrently fetch all requested Pure OAI collections
         tasks = [pure_client.get_all_records([c]) for c in args.collections]
@@ -76,8 +93,11 @@ async def main() -> None:
         persons = pl.from_dicts(raw.get("openaire_cris_persons", []) or [])
         orgs = pl.from_dicts(raw.get("openaire_cris_orgunits", []) or [])
 
-        print(
-            f"Loaded: publications={publications.height}, persons={persons.height}, orgs={orgs.height}"
+        logger.info(
+            "Loaded: publications={}, persons={}, orgs={}",
+            publications.height,
+            persons.height,
+            orgs.height,
         )
 
         # Build DOIs to fetch from OpenAlex
@@ -101,7 +121,7 @@ async def main() -> None:
             openalex_ids = all_dois[: args.max_openalex]
         else:
             openalex_ids = all_dois
-        print(persons)
+
         # Setup people names to search (if persons DataFrame exists), use "first_names" + family name
         people_search_names: list[str] = []
         if not args.skip_people and (
@@ -115,12 +135,13 @@ async def main() -> None:
             ]
             people_search_names = list(dict.fromkeys(people_search_names))  # stable dedupe
 
-        print("Starting pipeline run — this may take a while for large datasets")
+        logger.info("Starting pipeline run")
         pipeline = Pipeline()
         merged = await pipeline.run(
-            oils_df=publications,
-            full_df=None,
+            pure_publications_df=publications,
+            openalex_works_df=None,
             authors_df=persons,
+            orgunits_df=orgs,
             output_dir=outdir,
             pure_client=None,
             openalex_client=openalex_client,
@@ -130,7 +151,9 @@ async def main() -> None:
         )
 
         # Basic notification and write output (pipeline writes already, but ensure we save here too)
-        print(f"Pipeline finished; result: rows={merged.height}, cols={len(merged.columns)}")
+        logger.info(
+            "Pipeline finished; result: rows={}, cols={}", merged.height, len(merged.columns)
+        )
         # As an extra convenience write the same output with explicit functions
         parquet_path = outdir / "merged.explicit.parquet"
         xlsx_path = outdir / "merged.explicit.xlsx"
@@ -139,9 +162,43 @@ async def main() -> None:
         export.write_parquet(merged, parquet_path)
         export.write_formatted_excel(merged, xlsx_path)
 
-        print("Exported to:")
-        print(parquet_path)
-        print(xlsx_path)
+        logger.info("Exported to: {} and {}", parquet_path, xlsx_path)
+
+    # --- Optional parity validation ---
+    if args.check_parity:
+        _run_parity_check(outdir)
+
+
+def _run_parity_check(output_dir: pathlib.Path) -> None:
+    """Run parity validation against the regression baseline."""
+    from syntheca.reporting.parity import check_parity, compute_regression_metrics, load_baseline
+
+    if not _BASELINE_PATH.exists():
+        logger.warning("Regression baseline not found at {}; skipping parity check", _BASELINE_PATH)
+        return
+
+    logger.info("Computing regression metrics from {}", output_dir)
+    current = compute_regression_metrics(output_dir)
+    baseline = load_baseline(_BASELINE_PATH)
+
+    results = check_parity(current, baseline)
+
+    passed = sum(1 for v in results.values() if v)
+    failed = sum(1 for v in results.values() if not v)
+    logger.info("Parity check: {}/{} metrics passed", passed, passed + failed)
+
+    for metric, ok in sorted(results.items()):
+        status = "PASS" if ok else "FAIL"
+        logger.info(
+            "  [{}] {} — current={}, baseline={}",
+            status,
+            metric,
+            current.get(metric),
+            baseline.get(metric),
+        )
+
+    if failed:
+        logger.warning("{} parity checks failed — review output before publishing", failed)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,5 @@
+"""Pure OAI-PMH client using lxml for XML parsing."""
+
 from __future__ import annotations
 
 import asyncio
@@ -58,6 +60,8 @@ def generate_date_chunks(
 
 
 class PureOAIClient(BaseClient):
+    """OAI-PMH client for harvesting metadata from the UT Pure CRIS."""
+
     BASEURL = "https://ris.utwente.nl/ws/oai"
     SCHEMA = "oai_cerif_openaire"
 
@@ -209,6 +213,7 @@ class PureOAIClient(BaseClient):
         }
 
     async def get_all_records(self, collections: list[str]) -> dict[str, list[dict]]:
+        """Harvest all records for the given collections via OAI-PMH."""
         results = {}
         semaphore = asyncio.Semaphore(10)
 
@@ -367,6 +372,7 @@ class PureOAIClient(BaseClient):
 
 
 async def main():
+    """Run the Pure OAI client as a standalone script."""
     client = PureOAIClient()
     async with client:
         data = await client.get_all_records(["publications"])

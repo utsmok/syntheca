@@ -1,6 +1,6 @@
 import polars as pl
 
-from syntheca.processing.organizations import resolve_org_hierarchy, map_author_affiliations
+from syntheca.processing.organizations import map_author_affiliations, resolve_org_hierarchy
 
 
 def test_resolve_org_hierarchy_maps_parent_and_flags():

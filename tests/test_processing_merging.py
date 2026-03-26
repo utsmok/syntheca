@@ -1,7 +1,6 @@
 import polars as pl
 
-from syntheca.processing.merging import merge_datasets
-from syntheca.processing.merging import join_authors_and_publications
+from syntheca.processing.merging import join_authors_and_publications, merge_datasets
 
 
 def test_merge_datasets_normalizes_and_joins():

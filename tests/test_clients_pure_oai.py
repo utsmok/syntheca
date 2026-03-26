@@ -63,17 +63,21 @@ async def test_parse_publication():
 @pytest.mark.asyncio
 async def test_parse_person_and_org():
     client = PureOAIClient()
-    person_xml = '<cerif:Person xmlns:cerif="uri"><cerif:PersonName><cerif:FamilyNames>Doe</cerif:FamilyNames><cerif:FirstNames>John</cerif:FirstNames></cerif:PersonName><cerif:ORCID>0000-0000</cerif:ORCID></cerif:Person>'
+    person_xml = '<cerif:Person xmlns:cerif="uri"><cerif:PersonName><cerif:FamilyNames>Doe</cerif:FamilyNames><cerif:FirstNames>John</cerif:FirstNames></cerif:PersonName><cerif:ORCID>0000-0000</cerif:ORCID><cerif:ScopusAuthorID>12345</cerif:ScopusAuthorID><cerif:ResearcherID>B-9999-2021</cerif:ResearcherID></cerif:Person>'
     pers = xmltodict.parse(person_xml)["cerif:Person"]
     parsed_person = client._parse_person(pers)
     assert parsed_person["family_names"] == "Doe"
     assert parsed_person["first_names"] == "John"
+    assert parsed_person["scopus_author_id"] == "12345"
+    assert parsed_person["researcher_id"] == "B-9999-2021"
+    assert parsed_person["affiliations"] == []
 
-    org_xml = '<cerif:OrgUnit xmlns:cerif="uri"><cerif:Name>Dept</cerif:Name><cerif:Acronym>D</cerif:Acronym></cerif:OrgUnit>'
+    org_xml = '<cerif:OrgUnit xmlns:cerif="uri"><cerif:Type>Faculty</cerif:Type><cerif:Name>Dept</cerif:Name><cerif:Acronym>D</cerif:Acronym></cerif:OrgUnit>'
     org = xmltodict.parse(org_xml)["cerif:OrgUnit"]
     parsed_org = client._parse_orgunit(org)
     assert parsed_org["name"] == "Dept"
     assert parsed_org["acronym"] == "D"
+    assert parsed_org["type"] == "Faculty"
 
 
 def test_parse_wrapped_person_and_orgunit():
@@ -83,24 +87,37 @@ def test_parse_wrapped_person_and_orgunit():
             "@id": "824eae9b-2185-4532-a56f-269c6b0e2f13",
             "cerif:PersonName": {"cerif:FamilyNames": "Vaheoja", "cerif:FirstNames": "Monika"},
             "cerif:ORCID": "https://orcid.org/0000-0002-1540-8565",
+            "cerif:ScopusAuthorID": "77700001",
         }
     }
     parsed = client._parse_person(sample_person_wrapped)
     assert parsed["id"] == "824eae9b-2185-4532-a56f-269c6b0e2f13"
     assert parsed["family_names"] == "Vaheoja"
     assert parsed["first_names"] == "Monika"
+    assert parsed["scopus_author_id"] == "77700001"
+    assert parsed["researcher_id"] is None
 
     sample_org_wrapped = {
         "cerif:OrgUnit": {
             "@id": "0e8be171-fec6-476b-8c6f-383a181d3632",
+            "cerif:Type": {"#text": "Department"},
             "cerif:Name": {"#text": "Chemical Science and Engineering"},
             "cerif:Acronym": {"#text": "CSE"},
+            "cerif:PartOf": {
+                "cerif:OrgUnit": {
+                    "@id": "parent-org-id",
+                    "cerif:Name": {"#text": "Faculty of TNW"},
+                }
+            },
         }
     }
     parsed_org = client._parse_orgunit(sample_org_wrapped)
     assert parsed_org["id"] == "0e8be171-fec6-476b-8c6f-383a181d3632"
     assert parsed_org["name"] == "Chemical Science and Engineering"
     assert parsed_org["acronym"] == "CSE"
+    assert parsed_org["type"] == "Department"
+    assert parsed_org["part_of_org_id"] == "parent-org-id"
+    assert parsed_org["part_of_name"] == "Faculty of TNW"
 
 
 @pytest.mark.asyncio

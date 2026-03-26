@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     user_agent: str = "mailto:s.mok@utwente.nl"
     default_timeout: float = 10.0
     openalex_base_url: str = "https://api.openalex.org"
+    openaire_base_url: str = "https://api.openaire.eu/graph"
     cache_dir: Path = Path(__file__).parent.parent / ".cache"
     log_file: Path = Path(__file__).parent.parent / "logs" / "syntheca.log"
     # UI / behaviour toggles
@@ -44,4 +45,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-print(f"Loaded settings from environment with prefix SYNTHECA_: {settings}")
