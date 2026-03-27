@@ -166,7 +166,6 @@ class OpenAlexClient(BaseClient):
         if id_type_param == "doi":
             ids = [i for i in [normalize_single_doi(i) for i in ids] if i]
         results: list[Work] = []
-        raw_items: list[dict] = []
         bar = None
         if settings.enable_progress:
             pos = position if position is not None else get_next_position()
@@ -174,7 +173,6 @@ class OpenAlexClient(BaseClient):
         for batch in self._chunks(ids, self.PER_PAGE):
             items = await self._fetch_works_batch_resilient(list(batch), id_type_param)
             for it in items:
-                raw_items.append(it)
                 try:
                     results.append(Work.from_dict(it))
                 except Exception:
@@ -184,42 +182,14 @@ class OpenAlexClient(BaseClient):
                 bar.update(len(batch))
         if bar is not None:
             bar.close()
-        # Save raw items (fallback) and dataclass-converted rows if available
-        if settings.persist_intermediate and (results or raw_items):
-            # take dataclass instances and convert to dicts for saving
-            rows = []
-            for w in results:
-                try:
-                    if dataclasses.is_dataclass(w):
-                        rows.append(dataclasses.asdict(w))
-                    elif hasattr(w, "__dict__"):
-                        rows.append({k: v for k, v in w.__dict__.items() if not k.startswith("_")})
-                    else:
-                        rows.append(w)
-                except Exception:
-                    rows.append(
-                        {
-                            "id": getattr(w, "id", None),
-                            "display_name": getattr(w, "display_name", None),
-                            "doi": getattr(w, "doi", None),
-                        }
-                    )
-            # save converted dataclasses (if any) and save raw items as fallback
+        # Save converted dataclass rows to parquet (single write, no raw duplicate)
+        if settings.persist_intermediate and results:
             try:
-                if rows:
-                    df = robust_from_dicts(rows)
-                    save_dataframe_parquet(df, "openalex_works")
-            except Exception:
-                pass
-            try:
-                if raw_items:
-                    rdf = robust_from_dicts(raw_items)
-                    # Prefer saving converted rows as 'openalex_works', but if none exist, save raw as same name
-                    save_dataframe_parquet(
-                        rdf, "openalex_works" if not rows else "openalex_works_raw"
-                    )
-            except Exception:
-                pass
+                rows = [dataclasses.asdict(w) for w in results]
+                df = robust_from_dicts(rows)
+                save_dataframe_parquet(df, "openalex_works")
+            except Exception as exc:
+                logger.warning("Failed to persist OpenAlex works ({} rows): {}", len(results), exc)
         return results
 
     async def get_works_by_title(self, title: str) -> list[Work]:

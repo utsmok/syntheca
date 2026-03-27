@@ -159,6 +159,35 @@ async def test_get_works_by_title_keeps_successful_details():
     assert results[0].display_name == work_json["display_name"]
 
 
+@pytest.mark.asyncio
+async def test_get_works_by_ids_no_longer_writes_raw_duplicate(tmp_path: pathlib.Path):
+    """Should NOT create openalex_works_raw.parquet anymore."""
+    sample = _load_openalex_fixture("works_response_live_contract.json")
+    old_cache = settings.cache_dir
+    old_persist = settings.persist_intermediate
+    settings.cache_dir = tmp_path
+    settings.persist_intermediate = True
+
+    async def handler(request):
+        return Response(200, json=sample)
+
+    transport = MockTransport(handler)
+    client = OpenAlexClient()
+    client.client = client.client.__class__(transport=transport)
+
+    try:
+        await client.get_works_by_ids(["10.123/test"])
+        raw_df = load_dataframe_parquet("openalex_works_raw")
+        assert raw_df is None, "openalex_works_raw should no longer be written"
+        # But openalex_works SHOULD exist
+        works_df = load_dataframe_parquet("openalex_works")
+        assert works_df is not None
+        assert works_df.height == 1
+    finally:
+        settings.persist_intermediate = old_persist
+        settings.cache_dir = old_cache
+
+
 def test_clean_openalex_raw_data():
     client = OpenAlexClient()
     sample = {
