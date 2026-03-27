@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from syntheca.config import ut_profile
 from syntheca.config.source_precedence import Source
 from syntheca.models.canonical import (
     CanonicalOrganization,
@@ -24,6 +25,33 @@ from syntheca.models.canonical import (
     SourceAssertion,
 )
 from syntheca.models.openaire import OpenAIREOrganization, OpenAIREResearchProduct
+
+_LANGUAGE_NORMALIZATION_MAP = {
+    "en": "en",
+    "eng": "en",
+    "english": "en",
+    "nl": "nl",
+    "nld": "nl",
+    "dut": "nl",
+    "dutch": "nl",
+    "de": "de",
+    "deu": "de",
+    "ger": "de",
+    "german": "de",
+    "fr": "fr",
+    "fra": "fr",
+    "fre": "fr",
+    "french": "fr",
+    "es": "es",
+    "spa": "es",
+    "spanish": "es",
+    "it": "it",
+    "ita": "it",
+    "italian": "it",
+    "pt": "pt",
+    "por": "pt",
+    "portuguese": "pt",
+}
 
 
 def _assertion(source: Source, field_name: str, value: Any) -> SourceAssertion:
@@ -39,6 +67,18 @@ def _assertion(source: Source, field_name: str, value: Any) -> SourceAssertion:
 def _assertions_for(source: Source, mapping: dict[str, Any]) -> list[SourceAssertion]:
     """Create assertions for every non-None value in *mapping*."""
     return [_assertion(source, k, v) for k, v in mapping.items() if v is not None]
+
+
+def _normalize_language_value(*candidates: str | None) -> str | None:
+    """Normalize source language values to the canonical/output-layer form."""
+    for candidate in candidates:
+        if not candidate:
+            continue
+        normalized = candidate.strip().lower()
+        if not normalized:
+            continue
+        return _LANGUAGE_NORMALIZATION_MAP.get(normalized, normalized)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +295,7 @@ def _openalex_dict_to_canonical(d: dict[str, Any]) -> CanonicalWork:
 
     cited_by_count = d.get("cited_by_count")
     fwci = d.get("fwci")
+    ut_corresponding = _check_ut_corresponding(d)
 
     publisher = None
     primary_host_name = None
@@ -294,6 +335,7 @@ def _openalex_dict_to_canonical(d: dict[str, Any]) -> CanonicalWork:
         "publisher": publisher,
         "primary_host_name": primary_host_name,
         "keywords": keywords or None,
+        "ut_is_corresponding": ut_corresponding,
     }
 
     return CanonicalWork(
@@ -313,6 +355,7 @@ def _openalex_dict_to_canonical(d: dict[str, Any]) -> CanonicalWork:
         publisher=publisher,
         primary_host_name=primary_host_name,
         keywords=keywords,
+        ut_is_corresponding=ut_corresponding,
         provenance=_assertions_for(Source.OPENALEX, field_map),
     )
 
@@ -324,12 +367,13 @@ def _check_ut_corresponding(work: Any) -> bool | None:
     ``corresponding_institution_ids``, ``False`` if the field exists but UT
     is not listed, or ``None`` if the data is not available.
     """
-    ids = getattr(work, "corresponding_institution_ids", None) or []
+    if isinstance(work, dict):
+        ids = work.get("corresponding_institution_ids") or []
+    else:
+        ids = getattr(work, "corresponding_institution_ids", None) or []
     if not ids:
         return None
-    # OpenAlex ID for University of Twente
-    ut_oa_id = "https://openalex.org/I121955964"
-    return ut_oa_id in ids
+    return ut_profile.openalex_institution_id in ids
 
 
 # ---------------------------------------------------------------------------
@@ -432,7 +476,10 @@ def openaire_product_to_canonical(
         except ValueError, TypeError:
             pub_year = None
 
-    language = product.language.label if product.language else None
+    language = _normalize_language_value(
+        product.language.code if product.language else None,
+        product.language.label if product.language else None,
+    )
 
     # Author names
     author_names: list[str] = []
@@ -459,10 +506,10 @@ def openaire_product_to_canonical(
         if subj.subject and subj.subject.value:
             keywords.append(subj.subject.value)
 
-    # Citation count from BIP indicators
+    # Citation count from current live ``citationImpact`` or legacy ``bipIndicators``
     cited_by_count: int | None = None
-    if product.indicators and product.indicators.bip_indicators:
-        raw_cc = product.indicators.bip_indicators.citation_count
+    if product.indicators:
+        raw_cc = product.indicators.citation_count
         if raw_cc is not None:
             cited_by_count = int(raw_cc)
 

@@ -148,6 +148,17 @@ class BipIndicators(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class CitationImpact(BipIndicators):
+    """Current live citation-impact payload returned by the Graph API."""
+
+    citation_class: str | None = Field(None, alias="citationClass")
+    influence_class: str | None = Field(None, alias="influenceClass")
+    impulse_class: str | None = Field(None, alias="impulseClass")
+    popularity_class: str | None = Field(None, alias="popularityClass")
+
+    model_config = {"populate_by_name": True}
+
+
 class UsageCounts(BaseModel):
     """Download and view counters."""
 
@@ -156,12 +167,28 @@ class UsageCounts(BaseModel):
 
 
 class Indicators(BaseModel):
-    """Container for BIP indicators and usage counts."""
+    """Container for current and legacy bibliometric indicators."""
 
+    citation_impact: CitationImpact | None = Field(None, alias="citationImpact")
     bip_indicators: BipIndicators | None = Field(None, alias="bipIndicators")
     usage_counts: UsageCounts | None = Field(None, alias="usageCounts")
 
     model_config = {"populate_by_name": True}
+
+    @property
+    def citation_metrics(self) -> CitationImpact | BipIndicators | None:
+        """Return the active citation-like metrics payload.
+
+        Live Graph responses currently use ``citationImpact`` while older
+        saved fixtures still carry ``bipIndicators``.
+        """
+        return self.citation_impact or self.bip_indicators
+
+    @property
+    def citation_count(self) -> float | None:
+        """Return the citation-count signal from either supported shape."""
+        metrics = self.citation_metrics
+        return metrics.citation_count if metrics is not None else None
 
 
 class OpenAIREResearchProduct(BaseModel):

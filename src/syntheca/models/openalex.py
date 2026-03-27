@@ -6,7 +6,7 @@ Ported from repository-level `openalex_data_models.py`.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Self, TypeVar
+from typing import Any, Literal, Self, TypeVar
 
 from dacite import Config, from_dict
 
@@ -397,6 +397,21 @@ class Grant:
 
 
 @dataclass
+class Award:
+    """Award metadata associated with a work.
+
+    OpenAlex live payloads currently return structured award objects rather than
+    the older string-like posture that some earlier local assumptions implied.
+    """
+
+    id: str | None
+    display_name: str | None
+    funder_award_id: str | None
+    funder_id: str | None
+    funder_display_name: str | None
+
+
+@dataclass
 class DehydratedFunder:
     """Lightweight funder model containing basic fields."""
 
@@ -555,8 +570,6 @@ class HasContent:
 @dataclass
 class Keyword(BaseOpenAlex):
     """Keyword entity with minimal OpenAlex metadata."""
-
-    """Keyword entity containing minimal base metadata."""
 
 
 @dataclass
@@ -749,7 +762,7 @@ class Work(BaseOpenAlex):
     funders: list[DehydratedFunder | None] | None
     institutions: list[DehydratedInstitution | None] | None
     is_xpac: bool | None
-    awards: list[str | None] | None
+    awards: list[Award | None] | None
 
     abstract_inverted_index: dict[str, list[int]] | None
     authorships: list[Authorship | None]
@@ -786,6 +799,44 @@ class Work(BaseOpenAlex):
     versions: list[str | None] | None
     referenced_works_count: int | None
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        """Create a ``Work`` instance with small live-contract normalizations.
+
+        The audited live OpenAlex payloads currently:
+
+        - omit the ``grants`` key on some records, and
+        - return ``awards`` as an array of structured objects.
+
+        We normalize those cases here so the production parse path remains
+        tolerant without widening unrelated model behavior.
+        """
+        normalized = dict(data)
+        normalized.setdefault("grants", [])
+
+        awards = normalized.get("awards")
+        if isinstance(awards, list):
+            normalized["awards"] = [_normalize_award_payload(award) for award in awards]
+
+        return from_dict(data_class=cls, data=normalized, config=production_config)
+
+
+def _normalize_award_payload(award: Any) -> dict[str, Any] | None:
+    """Normalize OpenAlex award payloads into a structured object shape."""
+    if award is None:
+        return None
+    if isinstance(award, dict):
+        return award
+    if isinstance(award, str):
+        return {
+            "id": None,
+            "display_name": award,
+            "funder_award_id": None,
+            "funder_id": None,
+            "funder_display_name": None,
+        }
+    return None
+
 
 T = TypeVar("T", bound=BaseOpenAlex)
 
@@ -812,7 +863,10 @@ class Meta:
             Meta: Parsed Meta dataclass instance.
 
         """
-        return from_dict(data_class=cls, data=data, config=production_config)
+        normalized = dict(data)
+        normalized.setdefault("groups_count", None)
+        normalized.setdefault("next_cursor", None)
+        return from_dict(data_class=cls, data=normalized, config=production_config)
 
 
 @dataclass
@@ -844,11 +898,6 @@ class Response[T: BaseOpenAlex]:
         meta = Meta.from_dict(raw_meta)
         raw_results = data.get("results", [])
         if result_type:
-            parsed = [
-                None
-                if r is None
-                else from_dict(data_class=result_type, data=r, config=production_config)
-                for r in raw_results
-            ]
+            parsed = [None if r is None else result_type.from_dict(r) for r in raw_results]
             return cls(meta=meta, results=parsed)
         return from_dict(data_class=cls, data=data, config=production_config)
