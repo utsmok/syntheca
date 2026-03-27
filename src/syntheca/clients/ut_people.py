@@ -14,15 +14,12 @@ from typing import Any
 from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
-import polars as pl
 from Levenshtein import ratio as levenshtein_ratio
 from loguru import logger
 from selectolax.parser import HTMLParser
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
-from syntheca.utils.persistence import save_dataframe_parquet
-from syntheca.utils.polars_frames import robust_from_dicts
 
 #: Minimum Levenshtein similarity to accept when ranking ambiguous candidates.
 MIN_CANDIDATE_SIMILARITY: float = 0.55
@@ -168,13 +165,6 @@ class UTPeopleClient(BaseClient):
         if rank and candidates:
             candidates = rank_candidates(name, candidates)
 
-        # Persist search results if configured
-        try:
-            if settings.persist_intermediate and candidates:
-                fname = name.lower().replace(" ", "_")[:64]
-                save_dataframe_parquet(robust_from_dicts(candidates), f"ut_people_search_{fname}")
-        except (OSError, pl.exceptions.ComputeError) as exc:
-            logger.debug("Failed to persist UT People search for '{}': {}", name, exc)
         return candidates
 
     def _parse_org_text(self, text: str, split: bool = False) -> dict[str, str | None]:
