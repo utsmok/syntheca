@@ -19,6 +19,7 @@ Design decisions
 from __future__ import annotations
 
 from datetime import datetime
+import json
 from typing import Any
 
 import polars as pl
@@ -126,7 +127,7 @@ class CanonicalWork(BaseModel):
         """
         d = self.model_dump()
         # Flatten provenance to a JSON-safe string representation
-        d["provenance"] = [a.model_dump(mode="json") for a in self.provenance]
+        d["provenance"] = json.dumps([a.model_dump(mode="json") for a in self.provenance])
         return d
 
 
@@ -148,7 +149,7 @@ class CanonicalPerson(BaseModel):
     def to_flat_dict(self) -> dict[str, Any]:
         """Return a flat dict suitable for Polars ``from_dicts``."""
         d = self.model_dump()
-        d["provenance"] = [a.model_dump(mode="json") for a in self.provenance]
+        d["provenance"] = json.dumps([a.model_dump(mode="json") for a in self.provenance])
         return d
 
 
@@ -169,7 +170,7 @@ class CanonicalOrganization(BaseModel):
     def to_flat_dict(self) -> dict[str, Any]:
         """Return a flat dict suitable for Polars ``from_dicts``."""
         d = self.model_dump()
-        d["provenance"] = [a.model_dump(mode="json") for a in self.provenance]
+        d["provenance"] = json.dumps([a.model_dump(mode="json") for a in self.provenance])
         return d
 
 
