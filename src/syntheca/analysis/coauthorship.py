@@ -339,7 +339,7 @@ def build_collaboration_rollups(
         country_a = _country_for_person(person_a) if person_a else None
         country_b = _country_for_person(person_b) if person_b else None
         if country_a and country_b:
-            pair = tuple(sorted([country_a, country_b]))
+            pair = (country_a, country_b) if country_a <= country_b else (country_b, country_a)
             country_pair_counts[pair] = country_pair_counts.get(pair, 0) + 1
 
     result["ut_vs_external"] = pl.DataFrame(

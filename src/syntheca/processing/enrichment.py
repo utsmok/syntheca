@@ -68,10 +68,11 @@ def enrich_authors_with_faculties(authors_df: pl.DataFrame) -> pl.DataFrame:
 def parse_scraped_org_details(authors_df: pl.DataFrame) -> pl.DataFrame:
     """Parse the `org_details_pp` column from scraped UT People profiles.
 
-    This function mirrors the parsing logic from the legacy notebook, using the
-    faculty mapping to set boolean flags and extracting convenience columns
-    such as `institute`, `faculty`, `department`, `group`, and abbreviation
-    columns.
+    This function derives conservative convenience columns from the richer
+    `org_details_pp` structure emitted by the UT People client. The raw
+    `org_details_pp` hierarchy remains authoritative; flat `faculty` /
+    `department` / `group` columns are only populated where the hierarchy
+    supports those semantics safely.
 
     Args:
         authors_df: DataFrame with `org_details_pp` column.
@@ -94,57 +95,49 @@ def parse_scraped_org_details(authors_df: pl.DataFrame) -> pl.DataFrame:
     # add default bool columns (False)
     df = df.with_columns([pl.lit(False).alias(col) for col in short_codes])
 
+    def _org_slot_values(slot: str, attr: str) -> pl.Expr:
+        value_expr = pl.element().struct.field(slot).struct.field(attr).cast(pl.Utf8)
+        return (
+            pl.col("org_details_pp")
+            .list.eval(
+                pl.when(value_expr.is_not_null()).then(value_expr.str.strip_chars()).otherwise(None)
+            )
+            .list.drop_nulls()
+            .cast(pl.List(pl.Utf8))
+        )
+
     # parse the nested org details for faculty names
     df = (
-        df.with_columns(
-            pl.col("org_details_pp")
-            .list.eval(pl.element().struct.field("faculty").struct.field("name"))
-            .alias("_parsed_faculty_names")
-        )
+        df.with_columns(_org_slot_values("faculty", "name").alias("_parsed_faculty_names"))
         .with_columns(
             [
                 pl.col("_parsed_faculty_names").list.contains(name).alias(code)
                 for name, code in reverse_map.items()
             ]
         )
+        .with_columns(_org_slot_values("faculty", "name").list.join(", ").alias("faculty"))
+        .with_columns(_org_slot_values("faculty", "abbr").list.join(", ").alias("faculty_abbr"))
+        .with_columns(_org_slot_values("department", "name").list.join(", ").alias("department"))
         .with_columns(
-            pl.col("org_details_pp")
-            .list.eval(pl.element().struct.field("faculty").struct.field("name"))
-            .list.join(", ")
-            .alias("faculty")
+            _org_slot_values("department", "abbr").list.join(", ").alias("department_abbr")
         )
-        .with_columns(
-            pl.col("org_details_pp")
-            .list.eval(pl.element().struct.field("faculty").struct.field("abbr"))
-            .list.join(", ")
-            .alias("faculty_abbr")
-        )
-        .with_columns(
-            pl.col("org_details_pp")
-            .list.eval(pl.element().struct.field("department").struct.field("name"))
-            .list.join(", ")
-            .alias("department")
-        )
-        .with_columns(
-            pl.col("org_details_pp")
-            .list.eval(pl.element().struct.field("department").struct.field("abbr"))
-            .list.join(", ")
-            .alias("department_abbr")
-        )
-        .with_columns(
-            pl.col("org_details_pp")
-            .list.eval(pl.element().struct.field("group").struct.field("name"))
-            .list.join(", ")
-            .alias("group")
-        )
-        .with_columns(
-            pl.col("org_details_pp")
-            .list.eval(pl.element().struct.field("group").struct.field("abbr"))
-            .list.join(", ")
-            .alias("group_abbr")
-        )
+        .with_columns(_org_slot_values("group", "name").list.join(", ").alias("group"))
+        .with_columns(_org_slot_values("group", "abbr").list.join(", ").alias("group_abbr"))
         .drop("_parsed_faculty_names")
     )
+
+    for col in [
+        "faculty",
+        "faculty_abbr",
+        "department",
+        "department_abbr",
+        "group",
+        "group_abbr",
+    ]:
+        if col in df.columns:
+            df = df.with_columns(
+                pl.when(pl.col(col) == "").then(None).otherwise(pl.col(col)).alias(col)
+            )
 
     return df
 
