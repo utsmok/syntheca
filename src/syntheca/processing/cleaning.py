@@ -9,17 +9,41 @@ from __future__ import annotations
 import polars as pl
 
 
-def normalize_doi(df: pl.DataFrame, col_name: str, new_col: str | None = None) -> pl.DataFrame:
+def normalize_single_doi(doi: str) -> str | None:
+    """Normalize a single DOI string.
+
+    This helper lowercases the DOI, removes commas and `https://doi.org/`-prefixes, and trims
+    whitespace.
+
+    Args:
+        doi (str): The DOI string to normalize.
+
+    Returns:
+        str: The normalized DOI string. OR
+        None: If the input DOI is not a valid string or is empty after normalization.
+    """
+    try:
+        s = str(doi)
+    except Exception:
+        return None
+    normalized = s.replace("https://doi.org/", "").replace(",", "").lower().strip()
+    return normalized or None
+
+
+def normalize_doi_col_in_df(
+    df: pl.DataFrame, col_name: str, new_col: str | None = None
+) -> pl.DataFrame:
     """Normalize DOIs in a DataFrame column.
 
-    This helper lowercases DOIs, removes `https://doi.org/` prefixes and trims
-    whitespace, returning a new DataFrame.
+    This helper lowercases DOIs, removes ``https://doi.org/`` prefixes and trims
+    whitespace, returning a new DataFrame. The function name reflects that it
+    operates on a Polars DataFrame column (not a single DOI string).
 
     Args:
         df (pl.DataFrame): Input Polars DataFrame.
         col_name (str): Name of the column containing DOI strings.
         new_col (str | None): Optional column name to write normalized DOIs into.
-            If `None`, the original column is overwritten.
+            If ``None``, the original column is overwritten.
 
     Returns:
         pl.DataFrame: A new DataFrame with normalized DOI values.
@@ -35,6 +59,7 @@ def normalize_doi(df: pl.DataFrame, col_name: str, new_col: str | None = None) -
         .cast(pl.Utf8)
         .fill_null("")
         .str.replace("https://doi.org/", "")
+        .str.replace(",", "")
         .str.to_lowercase()
         .str.strip_chars()
         .alias(new_col)
@@ -56,7 +81,7 @@ def clean_publications(df: pl.DataFrame) -> pl.DataFrame:
     """
     out = df.clone()
     if "doi" in out.columns:
-        out = normalize_doi(out, "doi")
+        out = normalize_doi_col_in_df(out, "doi")
 
     if "publication_date" in out.columns:
         # Keep this simple and robust for the unit tests. The monolith had a few

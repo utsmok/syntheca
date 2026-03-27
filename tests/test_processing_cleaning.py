@@ -1,11 +1,11 @@
 import polars as pl
 
-from syntheca.processing.cleaning import clean_publications, normalize_doi
+from syntheca.processing.cleaning import clean_publications, normalize_doi_col_in_df
 
 
 def test_normalize_doi_lowercases_and_strips():
     df = pl.DataFrame({"doi": ["https://doi.org/10.1000/ABC ", " 10.123/XYZ"]})
-    out = normalize_doi(df, "doi")
+    out = normalize_doi_col_in_df(df, "doi")
     assert out["doi"][0] == "10.1000/abc"
     assert out["doi"][1] == "10.123/xyz"
 
