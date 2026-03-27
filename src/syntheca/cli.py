@@ -19,7 +19,7 @@ import polars as pl
 
 from syntheca.clients.openaire import OpenAIREClient
 from syntheca.clients.openalex import OpenAlexClient
-from syntheca.clients.pure_oai import PureOAIClient
+from syntheca.clients.pure_oai import PureOAIClient, pure_publications_to_frame
 from syntheca.clients.ut_people import UTPeopleClient
 from syntheca.comparison.scopus import ScopusComparison, ScopusExportReader
 from syntheca.pipeline import Pipeline
@@ -31,6 +31,7 @@ from syntheca.reporting.parity import (
     load_baseline,
 )
 from syntheca.utils.logging import configure_logging
+from syntheca.utils.polars_frames import robust_from_dicts
 
 logger = __import__("loguru").logger
 
@@ -126,11 +127,13 @@ async def _run_pipeline_command(args: argparse.Namespace) -> None:
             if isinstance(result, dict):
                 raw.update(result)
 
-        publications = pl.from_dicts(
+        publications = pure_publications_to_frame(
             cast(list[dict[str, Any]], raw.get("openaire_cris_publications") or [])
         )
-        persons = pl.from_dicts(cast(list[dict[str, Any]], raw.get("openaire_cris_persons") or []))
-        org_units = pl.from_dicts(
+        persons = robust_from_dicts(
+            cast(list[dict[str, Any]], raw.get("openaire_cris_persons") or [])
+        )
+        org_units = robust_from_dicts(
             cast(list[dict[str, Any]], raw.get("openaire_cris_orgunits") or [])
         )
 

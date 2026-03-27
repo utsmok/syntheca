@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from syntheca.clients.openaire import OpenAIREClient
 from syntheca.clients.openalex import OpenAlexClient
-from syntheca.clients.pure_oai import PureOAIClient
+from syntheca.clients.pure_oai import PureOAIClient, pure_publications_to_frame
 from syntheca.clients.ut_people import UTPeopleClient
 from syntheca.config import settings
 from syntheca.config.output_contract import ensure_publication_contract
@@ -27,6 +27,7 @@ from syntheca.processing.organizations import map_author_affiliations, resolve_o
 from syntheca.processing.reconciliation import reconcile_works
 from syntheca.providers.openaire_provider import OpenAIREProvider
 from syntheca.reporting import export
+from syntheca.utils.polars_frames import robust_from_dicts
 from syntheca.utils.progress import get_next_position
 
 
@@ -134,7 +135,9 @@ class Pipeline:
         # Clean publications
         if pure_publications_df is None and pure_client is not None:
             raw = await pure_client.get_all_records(["openaire_cris_publications"])
-            pure_publications_df = pl.from_dicts(raw.get("openaire_cris_publications", []))
+            pure_publications_df = pure_publications_to_frame(
+                raw.get("openaire_cris_publications", [])
+            )
         pubs_clean = (
             cleaning.clean_publications(pure_publications_df)
             if pure_publications_df is not None
@@ -155,7 +158,15 @@ class Pipeline:
         # If openalex_works_df is missing and we have an OpenAlex client, fetch via IDs
         if openalex_works_df is None and openalex_client is not None and openalex_ids:
             pos = get_next_position()
-            works = await openalex_client.get_works_by_ids(openalex_ids, position=pos)
+            try:
+                works = await openalex_client.get_works_by_ids(openalex_ids, position=pos)
+            except Exception as exc:
+                logger.warning(
+                    "OpenAlex retrieval failed after fallbacks; continuing pipeline with {} partial work(s): {}",
+                    0,
+                    exc,
+                )
+                works = []
             rows = []
             for w in works:
                 try:
@@ -170,7 +181,7 @@ class Pipeline:
                             "publication_year": getattr(w, "publication_year", None),
                         }
                     )
-            openalex_works_df = pl.from_dicts(rows) if rows else pl.DataFrame()
+            openalex_works_df = robust_from_dicts(rows) if rows else pl.DataFrame()
 
         oa_clean = (
             cleaning.clean_publications(openalex_works_df)
@@ -320,7 +331,7 @@ class Pipeline:
                         continue
 
                 if candidates:
-                    pp_df = pl.from_dicts(candidates)
+                    pp_df = robust_from_dicts(candidates)
                     if authors_df is None:
                         authors_df = pp_df
                     else:
@@ -623,7 +634,7 @@ def _canonical_works_to_overlay_df(works: list[CanonicalWork]) -> pl.DataFrame:
                 "reconciled_source_count": len(sources),
             }
         )
-    return pl.from_dicts(rows) if rows else pl.DataFrame()
+    return robust_from_dicts(rows) if rows else pl.DataFrame()
 
 
 def _overlay_reconciled_work_fields(
