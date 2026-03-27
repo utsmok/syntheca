@@ -35,10 +35,11 @@ class Settings(BaseSettings):
     # UI / behaviour toggles
     enable_progress: bool = True
     persist_intermediate: bool = True
-    # When enabled, client retrieval methods will attempt to load cached
-    # data from the configured `cache_dir` (saved previously via
-    # `save_dataframe_parquet`) before attempting network requests.
-    use_cache_for_retrieval: bool = False
+    # When enabled, retrieval HTTP requests will use a shared on-disk raw
+    # response cache under the configured `cache_dir`. Individual clients may
+    # still persist parsed/intermediate artifacts for inspection, but request
+    # caching is the authoritative retrieval cache.
+    use_cache_for_retrieval: bool = True
 
     model_config = SettingsConfigDict(env_prefix="SYNTHECA_")
 
