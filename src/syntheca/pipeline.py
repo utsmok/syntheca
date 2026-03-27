@@ -10,8 +10,10 @@ from __future__ import annotations
 import dataclasses
 import pathlib
 
+import httpx
 import polars as pl
 from loguru import logger
+from tenacity import RetryError
 from tqdm import tqdm
 
 from syntheca.clients.openaire import OpenAIREClient
@@ -360,35 +362,80 @@ class Pipeline:
                         _need_search_names.append(nm)
 
             if _need_search_names:
-                candidates = []
-                iterable = (
-                    tqdm(
-                        _need_search_names,
-                        desc="ut-people",
-                        disable=not settings.enable_progress,
-                        position=get_next_position(),
-                    )
-                    if settings.enable_progress
-                    else _need_search_names
-                )
-                for name in iterable:
-                    try:
-                        res = await ut_people_client.search_person(name)
-                        if not res:
-                            continue
-                        # Take best candidate (already ranked by Levenshtein)
-                        best = res[0]
-                        profile_url = best.get("people_page_url")
-                        if profile_url:
-                            org_details = await ut_people_client.scrape_profile(profile_url)
-                            best["org_details_pp"] = org_details
-                        candidates.append(best)
-                    except (OSError, ValueError, KeyError, TypeError) as exc:
-                        logger.debug("UT People search failed for '{}': {}", name, exc)
-                        continue
+                cached_ut: pl.DataFrame | None = None
+                names_to_fetch = list(_need_search_names)
 
-                if candidates:
-                    pp_df = robust_from_dicts(candidates)
+                # Load cached UT People results and compute missing names
+                if settings.persist_intermediate:
+                    from syntheca.utils.persistence import (
+                        load_dataframe_parquet,
+                        save_dataframe_parquet,
+                    )
+
+                    cached_ut = load_dataframe_parquet("ut_people_results")
+                    if cached_ut is not None and cached_ut.height:
+                        cached_names = set(
+                            cached_ut.select(
+                                pl.col("found_name").str.to_lowercase().str.strip_chars()
+                            )
+                            .to_series()
+                            .to_list()
+                        )
+                        cached_names.discard(None)
+                        cached_names.discard("")
+                        requested = {n.lower().strip() for n in _need_search_names}
+                        missing = requested - cached_names
+                        names_to_fetch = list(missing)
+
+                        logger.info(
+                            "UT People cache: {} results present, {} names requested, {} missing → fetching",
+                            cached_ut.height,
+                            len(requested),
+                            len(names_to_fetch),
+                        )
+
+                candidates = []
+                if names_to_fetch:
+                    iterable = (
+                        tqdm(
+                            names_to_fetch,
+                            desc="ut-people",
+                            disable=not settings.enable_progress,
+                            position=get_next_position(),
+                        )
+                        if settings.enable_progress
+                        else names_to_fetch
+                    )
+                    for name in iterable:
+                        try:
+                            res = await ut_people_client.search_person(name)
+                            if not res:
+                                continue
+                            # Take best candidate (already ranked by Levenshtein)
+                            best = res[0]
+                            profile_url = best.get("people_page_url")
+                            if profile_url:
+                                org_details = await ut_people_client.scrape_profile(profile_url)
+                                best["org_details_pp"] = org_details
+                            candidates.append(best)
+                        except (OSError, ValueError, KeyError, TypeError, httpx.HTTPStatusError, httpx.RequestError, RetryError) as exc:
+                            logger.debug("UT People search failed for '{}': {}", name, exc)
+                            continue
+
+                # Merge cached + freshly fetched
+                fetched_df = robust_from_dicts(candidates) if candidates else pl.DataFrame()
+                if cached_ut is not None and cached_ut.height:
+                    pp_df = pl.concat([cached_ut, fetched_df])
+                elif fetched_df.height:
+                    pp_df = fetched_df
+                else:
+                    pp_df = cached_ut if cached_ut is not None else pl.DataFrame()
+
+                # Persist the merged result so the cache grows each run
+                if settings.persist_intermediate and pp_df.height:
+                    save_dataframe_parquet(pp_df, "ut_people_results")
+
+                if pp_df.height:
                     if authors_df is None:
                         authors_df = pp_df
                     else:
