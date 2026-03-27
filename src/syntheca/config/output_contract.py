@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+import polars as pl
+
 
 class OutputStability(StrEnum):
     """Column stability tier."""
@@ -129,3 +131,24 @@ COLUMN_REGISTRY: dict[str, OutputStability] = {
     col: OutputStability.STABLE for col in STABLE_COLUMNS
 }
 COLUMN_REGISTRY.update({col: OutputStability.OPTIONAL for col in OPTIONAL_COLUMNS})
+
+
+def ensure_publication_contract(df: pl.DataFrame) -> pl.DataFrame:
+    """Return *df* with every stable publication column present.
+
+    The merged pipeline output is still assembled from heterogeneous source
+    frames. During the audit-remediation transition we enforce the stable
+    publication contract by materializing any missing stable column as a null
+    column rather than silently omitting it from exported artifacts.
+
+    Args:
+        df: Publication output DataFrame.
+
+    Returns:
+        A DataFrame that contains all :data:`STABLE_COLUMNS`.
+    """
+    missing = [column for column in STABLE_COLUMNS if column not in df.columns]
+    if not missing:
+        return df
+
+    return df.with_columns([pl.lit(None).alias(column) for column in missing])
