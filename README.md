@@ -14,11 +14,26 @@ A modern ETL pipeline for retrieving, processing, and enriching institutional ac
 uv sync
 ```
 
-## Running the pipeline
+## Running Syntheca today
 
-### Full pipeline script
+Syntheca now has one authoritative supported CLI surface, plus a repo-local
+compatibility wrapper.
 
-The primary entrypoint is the pipeline script:
+### Supported primary entrypoint
+
+Run the installed CLI from the repository root:
+
+```bash
+uv run syntheca run --output-dir ./output
+```
+
+Equivalent module form:
+
+```bash
+uv run python -m syntheca run --output-dir ./output
+```
+
+Compatibility wrapper:
 
 ```bash
 python scripts/run_full_pipeline.py --output-dir ./output
@@ -26,20 +41,34 @@ python scripts/run_full_pipeline.py --output-dir ./output
 
 Options:
 - `--output-dir DIR` — where to write outputs (default: `./output`)
-- `--collections ...` — Pure OAI-PMH collections to fetch (default: publications, persons, orgunits)
+- `--collections ...` — Pure OAI-PMH collections to fetch (default: `openaire_cris_publications`, `openaire_cris_persons`, `openaire_cris_orgunits`)
 - `--max-openalex N` — limit OpenAlex DOI lookups (0 = all)
 - `--skip-people` — skip UT People enrichment
-- `--check-parity` — validate outputs against the regression baseline after pipeline completes
+- `--skip-openaire` — disable bounded OpenAIRE reconciliation supplements
+- `--check-parity` — run regression-metric comparison against the committed frozen offline baseline
 
-### Module entrypoint
+### Supported opt-in command
+
+Scopus/SciVal comparison remains export-first and is exposed as an explicit opt-in CLI mode:
 
 ```bash
-python -m syntheca.pipeline  # planned
+uv run syntheca compare-scopus path/to/export.xlsx --internal-parquet output/merged.reconciled.parquet --output-dir ./output
 ```
 
-## Features
+### Not currently supported as a user CLI
 
-- **Sources**: OAI-PMH (Pure), OpenAlex API, UT People page scraping, Scopus exports (comparison only)
+- `python -m syntheca.pipeline` is **not** a supported user-facing CLI entrypoint.
+- Co-authorship and policy-citation workflows remain documented library paths, not default or bundled CLI commands.
+
+### Reference-only surfaces
+
+- `current_marimo_monolith.py` is retained for historical/reference purposes only.
+- It should not be treated as the current supported runtime path.
+
+## Implemented capabilities
+
+- **Default supported run path**: Pure OAI-PMH ingestion, OpenAlex enrichment, bounded OpenAIRE reconciliation sidecar, UT People fallback enrichment, merged export writing, regression parity comparison
+- **Library-level modules present in package code**: OpenAIRE Graph client/provider support, Scopus/SciVal comparison utilities, co-authorship analysis, policy-citation investigation
 - **Stack**: Python 3.14, `polars`, `httpx`, `pydantic`
 - **Architecture**: async I/O, type-safe canonical data models, robust error handling
 
@@ -57,55 +86,71 @@ See `src/syntheca/processing/merging.py` and `src/syntheca/models/adapters.py` f
 The installable product surface is `src/syntheca/`.  Every module inside this
 tree satisfies quality gates (typing, linting, tests).
 
-## Output groups
+## Outputs
 
-The pipeline produces outputs organised into four stable groups.
+### Default run outputs today
 
-### Core Data (`output/`)
-
-Normalized, merged publications — the main pipeline output.
+The supported run path writes the merged-output family plus bounded transition/parity artifacts.
 
 | File | Description |
 |---|---|
 | `merged.parquet` | Merged and deduplicated publications (Parquet) |
 | `merged.xlsx` | Same data as a formatted Excel workbook |
+| `merged.reconciled.parquet` | Bounded reconciliation sidecar used for side-by-side review during transition |
+| `merged.reconciled.xlsx` | Excel form of the bounded reconciliation sidecar |
+| `merged.explicit.parquet` | Explicit duplicate export written by the script wrapper |
+| `merged.explicit.xlsx` | Explicit duplicate Excel export written by the script wrapper |
+| `pure_publications_clean.parquet` | Parity-support artifact for Pure publication counts |
+| `pure_persons.parquet` | Parity-support artifact for Pure person counts |
+| `pure_orgunits.parquet` | Parity-support artifact for Pure org-unit counts |
+| `openalex_works_clean.parquet` | Parity-support artifact for OpenAlex hit-rate checks |
+| `authors_enriched.parquet` | Parity-support artifact for org-mapping coverage and unresolved-person checks |
 
-Stable columns are defined in `src/syntheca/config/output_contract.py`.
+Stable publication columns are defined in `src/syntheca/config/output_contract.py`.
 
-### Comparison (`output/comparison/`)
+### Output groups defined in code, but not emitted automatically by the default run path
 
-Scopus/SciVal export comparison results (produced when a Scopus file is provided).
+The package defines richer output groups in `src/syntheca/reporting/output_groups.py`, but the default runnable path above does **not** currently generate them automatically.
 
-| File | Description |
-|---|---|
-| `scopus_matched.parquet` | Records in both Scopus and internal data |
-| `scopus_only.parquet` | Records only in the Scopus export |
-| `internal_only.parquet` | Records only in internal data |
-| `scopus_mismatches.parquet` | Matched records with field-level differences |
+- **Comparison** — Scopus/SciVal comparison outputs from `syntheca.comparison.scopus`
+- **Co-authorship** — edge tables and collaboration rollups from `syntheca.analysis.coauthorship`
+- **Policy citations** — candidate/review exports from `syntheca.analysis.policy_citations`
 
-### Co-authorship (`output/coauthorship/`)
+Treat co-authorship and policy-citation outputs as **implemented library capabilities**, and comparison outputs as a **supported opt-in CLI path**, not as files guaranteed by the default `syntheca run` command.
 
-Co-authorship edge tables and collaboration rollups.
+### Scopus/SciVal comparison input boundary
 
-| File | Description |
-|---|---|
-| `author_publication_links.parquet` | Publication-to-author link table |
-| `coauthor_edges.parquet` | Co-author pair edges with shared-work counts |
-| `ut_vs_external.parquet` | UT-internal vs external collaboration summary |
-| `university_rollup.parquet` | Edges by university-type affiliation |
-| `company_rollup.parquet` | Edges involving company-affiliated authors |
-| `country_rollup.parquet` | Edges by country pairs |
+The comparison path remains **export-first**.
 
-### Policy Citations (`output/policy_citations/`)
+Supported comparison inputs for `syntheca.comparison.scopus` are local, document-level export files in `.csv`, `.xlsx`, or `.xls` form, including:
 
-Policy-citation candidates and human-review queue.
+- Scopus document exports
+- SciVal publication-detail exports whose columns normalize into document fields such as DOI, title, year, document type, and source title
+- observed SciVal header variants such as `publication_type` / `Publication type` and `scopus_source_title` / `Scopus Source title`
 
-| File | Description |
-|---|---|
-| `policy_candidates.csv` | Policy-citation candidates sorted by confidence |
-| `policy_review_queue.xlsx` | Human-review queue for borderline candidates |
+Out of scope for this product surface:
 
-Output groups and file contracts are defined in `src/syntheca/reporting/output_groups.py`.
+- direct Scopus or Elsevier API access, API-key handling, or export-dashboard automation
+- source-list or journal-list workbooks that are not document exports, such as `scopus_ext_list_May_2025.xlsx`
+- treating authenticated vendor export UX behavior as part of the offline comparison contract
+
+## Parity status
+
+The frozen offline regression pack now has a **real committed baseline**.
+
+- `tests/regression_baseline.json` is marked `_baseline_status: "real"` and carries non-null tracked metrics for the frozen offline pack.
+- `--check-parity` compares current exported artifacts against that baseline and should fail meaningfully when quality regresses.
+- This parity gate covers the offline regression pack only; live endpoint smoke checks remain a separate release-signoff step.
+- Safe cutover still requires both green parity and successful live smoke verification.
+
+## Configuration
+
+Environment-variable examples are provided in `.env.example`.
+
+Supported prefixes:
+
+- `SYNTHECA_` for general runtime settings
+- `SYNTHECA_UT_` for University of Twente institutional overrides
 
 ## Development
 

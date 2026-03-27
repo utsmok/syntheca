@@ -1,5 +1,10 @@
 # Refactoring Master Plan: Syntheca Library
 
+> Historical note (2026-03-27): this planning document predates the post-implementation audit.
+> Any references below to a future `app.py` Marimo UI describe an unrealized plan, not the
+> current supported entrypoint surface. The supported runnable path today is
+> `scripts/run_full_pipeline.py`; `current_marimo_monolith.py` remains reference-only.
+
 This document outlines the step-by-step plan to refactor the current monolithic Marimo notebook into a modern, modular Python 3.14 library (`syntheca`).
 Be sure to adhere to the instructions in `.github/copilot-instructions.md` plus the details in this document when implementing each step.
 
@@ -254,4 +259,3 @@ Work has been done on these steps, but the results need to be tested, verified, 
     *   **UI**: `mo.ui.file_browser`, `mo.ui.checkbox`, `mo.ui.range_slider`.
     *   **Action**: Button click triggers `await Pipeline().run(...)`.
     *   **Display**: Show progress bars and final DataFrame sample.
-
