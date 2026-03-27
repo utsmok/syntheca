@@ -157,7 +157,12 @@ class Pipeline:
 
         # If openalex_works_df is missing and we have an OpenAlex client, fetch via IDs
         if openalex_works_df is None and openalex_client is not None and openalex_ids:
-            # Check cache before fetching (saves ~35 min on repeat runs)
+            from syntheca.processing.cleaning import normalize_single_doi
+
+            cached_oa: pl.DataFrame | None = None
+            ids_to_fetch = list(openalex_ids)
+
+            # Load cached works and compute remaining DOIs to fetch
             if settings.persist_intermediate:
                 from syntheca.utils.persistence import (
                     load_dataframe_parquet,
@@ -166,13 +171,38 @@ class Pipeline:
 
                 cached_oa = load_dataframe_parquet("openalex_works")
                 if cached_oa is not None and cached_oa.height:
-                    logger.info("Loading {} cached OpenAlex works, skipping API fetch", cached_oa.height)
-                    openalex_works_df = cached_oa
+                    cached_dois = set(
+                        cached_oa.select(
+                            pl.col("doi").str.to_lowercase().str.strip_chars()
+                        )
+                        .to_series()
+                        .to_list()
+                    )
+                    cached_dois.discard(None)
+                    cached_dois.discard("")
+                    cached_dois = {d for d in cached_dois if d}
 
-            if openalex_works_df is None or not openalex_works_df.height:
+                    requested = {
+                        nd
+                        for i in openalex_ids
+                        if (nd := normalize_single_doi(i))
+                    }
+                    missing = requested - cached_dois
+                    ids_to_fetch = list(missing)
+
+                    logger.info(
+                        "Cache: {} works present, {} IDs requested, {} missing → fetching",
+                        cached_oa.height,
+                        len(requested),
+                        len(ids_to_fetch),
+                    )
+
+            if ids_to_fetch:
                 pos = get_next_position()
                 try:
-                    works = await openalex_client.get_works_by_ids(openalex_ids, position=pos)
+                    works = await openalex_client.get_works_by_ids(
+                        ids_to_fetch, position=pos
+                    )
                 except Exception as exc:
                     logger.warning(
                         "OpenAlex retrieval failed after fallbacks; continuing pipeline with {} partial work(s): {}",
@@ -194,9 +224,21 @@ class Pipeline:
                                 "publication_year": getattr(w, "publication_year", None),
                             }
                         )
-                openalex_works_df = robust_from_dicts(rows) if rows else pl.DataFrame()
-                if settings.persist_intermediate and openalex_works_df.height:
-                    save_dataframe_parquet(openalex_works_df, "openalex_works")
+                fetched_df = robust_from_dicts(rows) if rows else pl.DataFrame()
+            else:
+                fetched_df = pl.DataFrame()
+
+            # Merge cached + freshly fetched into final dataframe
+            if cached_oa is not None and cached_oa.height:
+                openalex_works_df = pl.concat([cached_oa, fetched_df])
+            elif fetched_df.height:
+                openalex_works_df = fetched_df
+            else:
+                openalex_works_df = cached_oa if cached_oa is not None else pl.DataFrame()
+
+            # Persist the merged result so the cache grows each run
+            if settings.persist_intermediate and openalex_works_df.height:
+                save_dataframe_parquet(openalex_works_df, "openalex_works")
 
         oa_clean = (
             cleaning.clean_publications(openalex_works_df)
