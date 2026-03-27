@@ -12,13 +12,16 @@ from collections.abc import Iterable
 from urllib.parse import quote
 
 import httpx
-import polars as pl
+from loguru import logger
+from tenacity import RetryError
 from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings, ut_profile
 from syntheca.models.openalex import Work
-from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
+from syntheca.processing.cleaning import normalize_single_doi
+from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.polars_frames import robust_from_dicts
 from syntheca.utils.progress import get_next_position
 
 
@@ -27,6 +30,8 @@ class OpenAlexClient(BaseClient):
 
     BASE = settings.openalex_base_url
     PER_PAGE = 50
+    _BATCH_RETRY_DELAYS = (1.0,)
+    _SINGLE_ID_RETRY_DELAYS = (1.0, 2.0)
 
     @staticmethod
     def _chunks(iterable: Iterable[str], size: int):
@@ -43,6 +48,101 @@ class OpenAlexClient(BaseClient):
         it = list(iterable)
         for i in range(0, len(it), size):
             yield it[i : i + size]
+
+    @staticmethod
+    def _normalize_work_id(value: str) -> str:
+        """Return a normalized identifier value safe for OpenAlex filter queries."""
+        return str(value).replace("doi:", "")
+
+    @classmethod
+    def _build_filter_value(cls, batch: list[str]) -> str:
+        """Return the OpenAlex filter payload for an ID batch."""
+        return "|".join(cls._normalize_work_id(item) for item in batch)
+
+    async def _fetch_works_batch(self, batch: list[str], id_type_param: str) -> list[dict]:
+        """Fetch a single OpenAlex batch and return raw result items."""
+        params = {
+            "filter": f"{id_type_param}:{self._build_filter_value(batch)}",
+            "per-page": max(1, min(self.PER_PAGE, len(batch))),
+        }
+        resp = await self.request("GET", f"{self.BASE}/works", params=params)
+        data = resp.json()
+        items = data.get("results") or []
+        if not isinstance(items, list):
+            raise ValueError("OpenAlex response payload did not contain a list under 'results'")
+        return items
+
+    async def _sleep_before_retry(self, delay_seconds: float) -> None:
+        """Sleep before a resilient retry attempt."""
+        await asyncio.sleep(delay_seconds)
+
+    async def _fetch_works_batch_resilient(
+        self,
+        batch: list[str],
+        id_type_param: str,
+    ) -> list[dict]:
+        """Fetch an OpenAlex batch with retry, split, and skip fallbacks.
+
+        Strategy:
+        1. Try the batch as-is.
+        2. Retry after a brief wait.
+        3. If a multi-ID batch still fails, split it into smaller batches.
+        4. If a single-ID request still fails after retries, skip that ID.
+
+        This keeps retrieval progressing even when one request or one identifier
+        causes the OpenAlex API to reject a larger batch.
+        """
+        retry_delays = self._SINGLE_ID_RETRY_DELAYS if len(batch) == 1 else self._BATCH_RETRY_DELAYS
+        last_exc: Exception | None = None
+        total_attempts = len(retry_delays) + 1
+
+        for attempt in range(1, total_attempts + 1):
+            if attempt > 1:
+                delay = retry_delays[attempt - 2]
+                logger.warning(
+                    "Retrying OpenAlex batch of {} {} identifier(s) in {}s after failure: {}",
+                    len(batch),
+                    id_type_param,
+                    delay,
+                    last_exc,
+                )
+                await self._sleep_before_retry(delay)
+            try:
+                return await self._fetch_works_batch(batch, id_type_param)
+            except (httpx.HTTPError, RetryError, ValueError) as exc:
+                last_exc = exc
+                logger.warning(
+                    "OpenAlex batch request failed for {} {} identifier(s) on attempt {}/{}: {}",
+                    len(batch),
+                    id_type_param,
+                    attempt,
+                    total_attempts,
+                    exc,
+                )
+
+        if len(batch) > 1:
+            split_size = max(1, len(batch) // 2)
+            logger.warning(
+                "Splitting failing OpenAlex batch of {} {} identifier(s) into chunks of {}",
+                len(batch),
+                id_type_param,
+                split_size,
+            )
+            recovered_items: list[dict] = []
+            for subbatch in self._chunks(batch, split_size):
+                recovered_items.extend(
+                    await self._fetch_works_batch_resilient(list(subbatch), id_type_param)
+                )
+            return recovered_items
+
+        logger.error(
+            "Skipping OpenAlex {} identifier '{}' after {} failed attempt(s): {}",
+            id_type_param,
+            batch[0],
+            total_attempts,
+            last_exc,
+        )
+        return []
 
     async def get_works_by_ids(
         self, ids: list[str], id_type: str = "doi", position: int | None = None
@@ -63,25 +163,8 @@ class OpenAlexClient(BaseClient):
 
         """
         id_type_param = "openalex" if id_type == "id" else id_type
-        # If cache retrieval is enabled, attempt to load a cached file first
-        if settings.use_cache_for_retrieval:
-            try:
-                df = load_dataframe_parquet("openalex_works")
-                if df is not None and df.height:
-                    rows = df.to_dicts()
-                    out: list[Work] = []
-                    for r in rows:
-                        try:
-                            out.append(Work.from_dict(r))
-                        except Exception:
-                            # ignore row we can't parse into a dataclass
-                            continue
-                    if out:
-                        return out
-            except Exception:
-                # Failed to load cache; fall back to API retrieval
-                pass
-
+        if id_type_param == "doi":
+            ids = [i for i in [normalize_single_doi(i) for i in ids] if i]
         results: list[Work] = []
         raw_items: list[dict] = []
         bar = None
@@ -89,15 +172,7 @@ class OpenAlexClient(BaseClient):
             pos = position if position is not None else get_next_position()
             bar = tqdm(total=len(ids), desc="openalex:ids", position=pos, unit="work")
         for batch in self._chunks(ids, self.PER_PAGE):
-            filter_value = "|".join([str(x).replace("doi:", "") for x in batch])
-            params = {
-                "filter": f"{id_type_param}:{filter_value}",
-                "per-page": self.PER_PAGE,
-            }
-            url = f"{self.BASE}/works"
-            resp = await self.request("GET", url, params=params)
-            data = resp.json()
-            items = data.get("results", [])
+            items = await self._fetch_works_batch_resilient(list(batch), id_type_param)
             for it in items:
                 raw_items.append(it)
                 try:
@@ -106,7 +181,7 @@ class OpenAlexClient(BaseClient):
                     # Skip items we can't parse; upstream will handle
                     continue
             if bar is not None:
-                bar.update(len(items))
+                bar.update(len(batch))
         if bar is not None:
             bar.close()
         # Save raw items (fallback) and dataclass-converted rows if available
@@ -132,13 +207,13 @@ class OpenAlexClient(BaseClient):
             # save converted dataclasses (if any) and save raw items as fallback
             try:
                 if rows:
-                    df = pl.from_dicts(rows)
+                    df = robust_from_dicts(rows)
                     save_dataframe_parquet(df, "openalex_works")
             except Exception:
                 pass
             try:
                 if raw_items:
-                    rdf = pl.from_dicts(raw_items)
+                    rdf = robust_from_dicts(raw_items)
                     # Prefer saving converted rows as 'openalex_works', but if none exist, save raw as same name
                     save_dataframe_parquet(
                         rdf, "openalex_works" if not rows else "openalex_works_raw"
@@ -149,22 +224,6 @@ class OpenAlexClient(BaseClient):
 
     async def get_works_by_title(self, title: str) -> list[Work]:
         """Search OpenAlex for works matching the given title."""
-        # Try to read cached title-based searches if enabled
-        if settings.use_cache_for_retrieval:
-            try:
-                fname = title[:64].lower().replace(" ", "_").replace("/", "_").replace("\\", "_")
-                df = load_dataframe_parquet(f"openalex_title_{fname}")
-                if df is not None and df.height:
-                    out = []
-                    for r in df.to_dicts():
-                        try:
-                            out.append(Work.from_dict(r))
-                        except Exception:
-                            continue
-                    if out:
-                        return out
-            except Exception:
-                pass
         url = f"{self.BASE}/autocomplete/works?q={quote(title)}"
         resp = await self.request("GET", url)
         data = resp.json()
@@ -195,7 +254,7 @@ class OpenAlexClient(BaseClient):
         # Save title results if configured
         if settings.persist_intermediate and results:
             try:
-                df = pl.from_dicts([dataclasses.asdict(w) for w in results])
+                df = robust_from_dicts([dataclasses.asdict(w) for w in results])
                 # sanitize title for file name
                 fname = title[:64].lower().replace(" ", "_").replace("/", "_").replace("\\", "_")
                 save_dataframe_parquet(df, f"openalex_title_{fname}")

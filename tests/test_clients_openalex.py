@@ -1,5 +1,6 @@
 import json
 import pathlib
+from copy import deepcopy
 
 import pytest
 from httpx import MockTransport, Response
@@ -13,6 +14,15 @@ FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures" / "openalex"
 
 def _load_openalex_fixture(name: str) -> dict:
     return json.loads((FIXTURES_DIR / name).read_text(encoding="utf-8"))
+
+
+def _make_work_for_identifier(identifier: str) -> dict:
+    work = deepcopy(_load_openalex_fixture("works_response_live_contract.json")["results"][0])
+    suffix = identifier.replace("/", "_")
+    work["id"] = f"https://openalex.org/W{abs(hash(identifier)) % 10_000_000}"
+    work["doi"] = identifier
+    work["display_name"] = f"Work for {suffix}"
+    return work
 
 
 @pytest.mark.asyncio
@@ -58,6 +68,67 @@ async def test_get_works_by_ids_persistent_cache(tmp_path: pathlib.Path):
     finally:
         settings.persist_intermediate = old_persist
         settings.cache_dir = old_cache
+
+
+@pytest.mark.asyncio
+async def test_get_works_by_ids_retries_then_splits_failed_batches(monkeypatch):
+    request_filters: list[str] = []
+
+    async def fake_sleep(_: float):
+        return None
+
+    async def handler(request):
+        filter_value = request.url.params["filter"]
+        request_filters.append(filter_value)
+        identifiers = filter_value.split(":", 1)[1].split("|")
+        if len(identifiers) > 2:
+            return Response(400, request=request)
+        return Response(200, json={"results": [_make_work_for_identifier(i) for i in identifiers]})
+
+    monkeypatch.setattr("syntheca.clients.openalex.asyncio.sleep", fake_sleep)
+
+    client = OpenAlexClient()
+    client.PER_PAGE = 4
+    client.client = client.client.__class__(transport=MockTransport(handler))
+
+    works = await client.get_works_by_ids(
+        ["10.1/a", "10.1/b", "10.1/c", "10.1/d"],
+    )
+
+    assert len(works) == 4
+    assert any(filter_value.count("|") == 3 for filter_value in request_filters)
+    assert request_filters.count("doi:10.1/a|10.1/b|10.1/c|10.1/d") >= 2
+    assert "doi:10.1/a|10.1/b" in request_filters
+    assert "doi:10.1/c|10.1/d" in request_filters
+
+
+@pytest.mark.asyncio
+async def test_get_works_by_ids_skips_single_identifier_after_retries(monkeypatch):
+    request_filters: list[str] = []
+
+    async def fake_sleep(_: float):
+        return None
+
+    async def handler(request):
+        filter_value = request.url.params["filter"]
+        request_filters.append(filter_value)
+        identifiers = filter_value.split(":", 1)[1].split("|")
+        if "10.bad/item" in identifiers:
+            return Response(400, request=request)
+        return Response(200, json={"results": [_make_work_for_identifier(i) for i in identifiers]})
+
+    monkeypatch.setattr("syntheca.clients.openalex.asyncio.sleep", fake_sleep)
+
+    client = OpenAlexClient()
+    client.PER_PAGE = 2
+    client.client = client.client.__class__(transport=MockTransport(handler))
+
+    works = await client.get_works_by_ids(["10.good/item", "10.bad/item"])
+
+    assert len(works) == 1
+    assert works[0].doi == "10.good/item"
+    assert request_filters.count("doi:10.good/item|10.bad/item") >= 2
+    assert request_filters.count("doi:10.bad/item") >= 3
 
 
 @pytest.mark.asyncio
