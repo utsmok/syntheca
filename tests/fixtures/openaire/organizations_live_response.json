@@ -1,0 +1,26 @@
+{
+  "header": {
+    "numFound": 21,
+    "maxScore": 10.91854,
+    "queryTime": 51,
+    "pageSize": 1,
+    "nextCursor": "AoM/D2Zvcm1hc19fX19fXzo6NTQzYjQzZDU4Zjc4ZjQ2NWQ5YTdhYmI5MzBkYzg0ZjcIP5ibsD8PZm9ybWFzX19fX19fOjo1NDNiNDNkNThmNzhmNDY1ZDlhN2FiYjkzMGRjODRmNw=="
+  },
+  "results": [
+    {
+      "legalShortName": null,
+      "legalName": "Luleå University of Technology",
+      "websiteUrl": null,
+      "alternativeNames": null,
+      "country": {
+        "code": "UNKNOWN",
+        "label": "Unknown"
+      },
+      "id": "formas______::543b43d58f78f465d9a7abb930dc84f7",
+      "pids": null,
+      "originalIds": [
+        "formas______::202100-2841"
+      ]
+    }
+  ]
+}

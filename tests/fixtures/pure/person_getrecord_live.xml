@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd https://www.openaire.eu/cerif-profile/1.2/ https://www.openaire.eu/schema/cris/1.2/openaire-cerif-profile.xsd">
+  <responseDate>2026-03-27T01:46:15Z</responseDate>
+  <request identifier="oai:ris.utwente.nl:openaire_cris_persons/e44967b7-fe0e-494d-ae2a-3bdf77b72ba5" metadataPrefix="oai_cerif_openaire" verb="GetRecord">https://ris.utwente.nl/ws/oai</request>
+  <GetRecord>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:openaire_cris_persons/e44967b7-fe0e-494d-ae2a-3bdf77b72ba5</identifier>
+        <datestamp>2026-03-26T23:52:20Z</datestamp>
+        <setSpec>openaire_cris_persons</setSpec>
+      </header>
+      <metadata>
+        <cerif:Person xmlns:sc="https://www.openaire.eu/cerif-profile/vocab/OpenAIRE_Service_Compatibility" xmlns:ar="http://purl.org/coar/access_right" xmlns:pubt="https://www.openaire.eu/cerif-profile/vocab/COAR_Publication_Types" xmlns:prot="https://www.openaire.eu/cerif-profile/vocab/COAR_Product_Types" xmlns:funt="https://www.openaire.eu/cerif-profile/vocab/OpenAIRE_Funding_Types" xmlns:patt="https://www.openaire.eu/cerif-profile/vocab/COAR_Patent_Types" xmlns:cerif="https://www.openaire.eu/cerif-profile/1.2/" id="openaire_cris_persons/e44967b7-fe0e-494d-ae2a-3bdf77b72ba5">
+          <cerif:PersonName>
+            <cerif:FamilyNames>Garcia Alba</cerif:FamilyNames>
+            <cerif:FirstNames>Laura</cerif:FirstNames>
+          </cerif:PersonName>
+        </cerif:Person>
+      </metadata>
+    </record>
+  </GetRecord>
+</OAI-PMH>

@@ -1,0 +1,687 @@
+{
+  "header": {
+    "numFound": 1,
+    "maxScore": 1.0,
+    "queryTime": 10,
+    "pageSize": 1,
+    "nextCursor": "AoM/D2RvaV9kZWR1cF9fXzo6MGRmZTdlNTAyNjQ0YmZhM2U2NTc0MmM4YzZmZDk2ZDcIP4AAAD8PZG9pX2RlZHVwX19fOjowZGZlN2U1MDI2NDRiZmEzZTY1NzQyYzhjNmZkOTZkNw=="
+  },
+  "results": [
+    {
+      "authors": [
+        {
+          "fullName": "Abhishek Sharma",
+          "name": "Abhishek",
+          "surname": "Sharma",
+          "rank": 1,
+          "pid": null
+        },
+        {
+          "fullName": "Dániel Czégel",
+          "name": "Dániel",
+          "surname": "Czégel",
+          "rank": 2,
+          "pid": {
+            "id": {
+              "scheme": "orcid_pending",
+              "value": "0000-0002-5722-1598"
+            },
+            "provenance": null
+          }
+        },
+        {
+          "fullName": "Michael Lachmann",
+          "name": "Michael",
+          "surname": "Lachmann",
+          "rank": 3,
+          "pid": null
+        },
+        {
+          "fullName": "Christopher P. Kempes",
+          "name": "Christopher P.",
+          "surname": "Kempes",
+          "rank": 4,
+          "pid": null
+        },
+        {
+          "fullName": "Sara I. Walker",
+          "name": "Sara I.",
+          "surname": "Walker",
+          "rank": 5,
+          "pid": {
+            "id": {
+              "scheme": "orcid",
+              "value": "0000-0001-5779-2772"
+            },
+            "provenance": null
+          }
+        },
+        {
+          "fullName": "Leroy Cronin",
+          "name": "Leroy",
+          "surname": "Cronin",
+          "rank": 6,
+          "pid": {
+            "id": {
+              "scheme": "orcid",
+              "value": "0000-0001-8035-5757"
+            },
+            "provenance": null
+          }
+        }
+      ],
+      "openAccessColor": "hybrid",
+      "publiclyFunded": false,
+      "type": "publication",
+      "language": {
+        "code": "eng",
+        "label": "English"
+      },
+      "countries": null,
+      "subjects": [
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Inventions"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Cultural Evolution"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Physics"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Origin of Life"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Humans"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Animals"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Models, Theoretical"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Selection, Genetic"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Biological Evolution"
+          },
+          "provenance": null
+        },
+        {
+          "subject": {
+            "scheme": "keyword",
+            "value": "Article"
+          },
+          "provenance": null
+        }
+      ],
+      "mainTitle": "Assembly theory explains and quantifies selection and evolution",
+      "subTitle": null,
+      "descriptions": [
+        "<jats:title>Abstract</jats:title><jats:p>Scientists have grappled with reconciling biological evolution<jats:sup>1,2</jats:sup> with the immutable laws of the Universe defined by physics. These laws underpin life’s origin, evolution and the development of human culture and technology, yet they do not predict the emergence of these phenomena. Evolutionary theory explains why some things exist and others do not through the lens of selection. To comprehend how diverse, open-ended forms can emerge from physics without an inherent design blueprint, a new approach to understanding and quantifying selection is necessary<jats:sup>3–5</jats:sup>. We present assembly theory (AT) as a framework that does not alter the laws of physics, but redefines the concept of an ‘object’ on which these laws act. AT conceptualizes objects not as point particles, but as entities defined by their possible formation histories. This allows objects to show evidence of selection, within well-defined boundaries of individuals or selected units. We introduce a measure called assembly (<jats:italic>A</jats:italic>), capturing the degree of causation required to produce a given ensemble of objects. This approach enables us to incorporate novelty generation and selection into the physics of complex objects. It explains how these objects can be characterized through a forward dynamical process considering their assembly. By reimagining the concept of matter within assembly spaces, AT provides a powerful interface between physics and biology. It discloses a new aspect of physics emerging at the chemical scale, whereby history and causal contingency influence what exists.</jats:p>"
+      ],
+      "publicationDate": "2023-10-04",
+      "publisher": "Springer Science and Business Media LLC",
+      "embargoEndDate": null,
+      "sources": [
+        "Crossref",
+        "Nature"
+      ],
+      "formats": null,
+      "contributors": null,
+      "coverages": null,
+      "bestAccessRight": {
+        "code": "c_abf2",
+        "label": "OPEN",
+        "scheme": "http://vocabularies.coar-repositories.org/documentation/access_rights/"
+      },
+      "container": {
+        "name": "Nature",
+        "issnPrinted": "0028-0836",
+        "issnOnline": "1476-4687",
+        "issnLinking": null,
+        "ep": "328",
+        "iss": null,
+        "sp": "321",
+        "vol": "622",
+        "edition": null,
+        "conferencePlace": null,
+        "conferenceDate": null
+      },
+      "documentationUrls": null,
+      "codeRepositoryUrl": null,
+      "programmingLanguage": null,
+      "contactPeople": null,
+      "contactGroups": null,
+      "tools": null,
+      "size": null,
+      "version": null,
+      "geoLocations": null,
+      "id": "doi_dedup___::0dfe7e502644bfa3e65742c8c6fd96d7",
+      "originalIds": [
+        "6600",
+        "10.1038/s41586-023-06600-9",
+        "50|doiboost____|0dfe7e502644bfa3e65742c8c6fd96d7",
+        "od_______267::1aac10f6f873d9cdc75207eb4d10d989",
+        "37794189",
+        "PMC10567559",
+        "oai:pubmedcentral.nih.gov:10567559",
+        "50|od_______267::1aac10f6f873d9cdc75207eb4d10d989"
+      ],
+      "pids": [
+        {
+          "scheme": "doi",
+          "value": "10.1038/s41586-023-06600-9"
+        },
+        {
+          "scheme": "pmid",
+          "value": "37794189"
+        },
+        {
+          "scheme": "pmc",
+          "value": "PMC10567559"
+        }
+      ],
+      "dateOfCollection": null,
+      "lastUpdateTimeStamp": null,
+      "indicators": {
+        "citationImpact": {
+          "citationCount": 108.0,
+          "influence": 8.248763e-09,
+          "popularity": 8.237567e-08,
+          "impulse": 108.0,
+          "citationClass": "C4",
+          "influenceClass": "C4",
+          "impulseClass": "C2",
+          "popularityClass": "C3"
+        }
+      },
+      "projects": [
+        {
+          "id": "ukri________::34c39f9bc160c04a62d37c2bec6cbd6d",
+          "code": "EP/S019472/1",
+          "acronym": null,
+          "title": "Chemobots: Digital-Chemical-Robotics to Convert Code to Molecules and Complex Systems",
+          "funder": "UK Research and Innovation",
+          "pids": null
+        },
+        {
+          "id": "ukri________::4361cb9a02f6c91078ef9fd5825dcae4",
+          "code": "EP/R01308X/1",
+          "acronym": null,
+          "title": "Complex Chemical Systems Platform Exploring Inorganic Intelligence",
+          "funder": "UK Research and Innovation",
+          "pids": null
+        },
+        {
+          "id": "ukri________::3f574b76f39a3e88c0fa625d99282ad7",
+          "code": "EP/L023652/1",
+          "acronym": null,
+          "title": "Programmable 'Digital' Synthesis for Discovery &amp; Scale-up of Molecules, Clusters &amp; Nanomaterials",
+          "funder": "UK Research and Innovation",
+          "pids": null
+        },
+        {
+          "id": "ukri________::d3c4babbb031dcb927742722549712fe",
+          "code": "EP/P00153X/1",
+          "acronym": null,
+          "title": "Advanced Mass Spectrometry Kit for Controlling Chemical Robots and Exploring Complex Chemical Systems",
+          "funder": "UK Research and Innovation",
+          "pids": null
+        },
+        {
+          "id": "corda__h2020::ae69fa0e209c4681ea437930bf84e3cb",
+          "code": "670467",
+          "acronym": "SMART-POM",
+          "title": "Artificial-Intelligence Driven Discovery and Synthesis of Polyoxometalate Clusters",
+          "funder": "European Commission",
+          "pids": [
+            {
+              "scheme": "doi",
+              "value": "10.3030/670467"
+            }
+          ]
+        }
+      ],
+      "organizations": [
+        {
+          "legalName": "University of Glasgow",
+          "acronym": "University of Glasgow",
+          "id": "openorgs____::3c168a5ca14adc2b399ebceb7f86db42",
+          "pids": [
+            {
+              "scheme": "OrgReg",
+              "value": "UK0151"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "501100020879"
+            },
+            {
+              "scheme": "UCAS",
+              "value": "G28"
+            },
+            {
+              "scheme": "HESA",
+              "value": "0168"
+            },
+            {
+              "scheme": "RRID",
+              "value": "RRID:SCR_011646"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "501100000853"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "501100020894"
+            },
+            {
+              "scheme": "GRID",
+              "value": "grid.8756.c"
+            },
+            {
+              "scheme": "Wikidata",
+              "value": "Q192775"
+            },
+            {
+              "scheme": "RRID",
+              "value": "RRID:nlx_29645"
+            },
+            {
+              "scheme": "ROR",
+              "value": "https://ror.org/00vtgdb53"
+            },
+            {
+              "scheme": "UKPRN",
+              "value": "10007794"
+            },
+            {
+              "scheme": "ISNI",
+              "value": "000000012193314X"
+            },
+            {
+              "scheme": "PIC",
+              "value": "999974165"
+            },
+            {
+              "scheme": "mag_id",
+              "value": "7882870"
+            },
+            {
+              "scheme": "OrgRef",
+              "value": "39569"
+            }
+          ]
+        },
+        {
+          "legalName": "Santa Fe Institute",
+          "acronym": "SFI",
+          "id": "openorgs____::7b33a51150d5b4f2e2ddbe2646452e7c",
+          "pids": [
+            {
+              "scheme": "ISNI",
+              "value": "0000000119411940"
+            },
+            {
+              "scheme": "mag_id",
+              "value": "1308548392"
+            },
+            {
+              "scheme": "OrgRef",
+              "value": "511751"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100011419"
+            },
+            {
+              "scheme": "Wikidata",
+              "value": "Q1196057"
+            },
+            {
+              "scheme": "ROR",
+              "value": "https://ror.org/01arysc35"
+            },
+            {
+              "scheme": "GRID",
+              "value": "grid.209665.e"
+            }
+          ]
+        },
+        {
+          "legalName": "Spacepharma",
+          "acronym": "Spacepharma",
+          "id": "pending_org_::779b0c4f1e037ce908e24f15729b699c",
+          "pids": null
+        },
+        {
+          "legalName": "Institute of Evolution",
+          "acronym": "Institute of Evolution",
+          "id": "ror_________::1319654db3116bb80f99dda68f5ff145",
+          "pids": [
+            {
+              "scheme": "ROR",
+              "value": "https://ror.org/00heh5r55"
+            }
+          ]
+        },
+        {
+          "legalName": "Spacepharma",
+          "acronym": "Spacepharma",
+          "id": "pending_org_::2449832bf44f99acadb3e9cd8f4533fc",
+          "pids": null
+        },
+        {
+          "legalName": "Arizona State University",
+          "acronym": "ASU",
+          "id": "openorgs____::1083f8cc8dcc97d69d49b6028c9ba984",
+          "pids": [
+            {
+              "scheme": "FundRef",
+              "value": "100006755"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100016546"
+            },
+            {
+              "scheme": "mag_id",
+              "value": "55732556"
+            },
+            {
+              "scheme": "OrgRef",
+              "value": "23695699"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100005908"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100017240"
+            },
+            {
+              "scheme": "OrgRef",
+              "value": "839427"
+            },
+            {
+              "scheme": "Wikidata",
+              "value": "Q670897"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100015714"
+            },
+            {
+              "scheme": "OrgRef",
+              "value": "2558313"
+            },
+            {
+              "scheme": "Wikidata",
+              "value": "Q4791438"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100007482"
+            },
+            {
+              "scheme": "RRID",
+              "value": "RRID:SCR_014053"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100018643"
+            },
+            {
+              "scheme": "OrgRef",
+              "value": "2496121"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100007727"
+            },
+            {
+              "scheme": "OrgRef",
+              "value": "9752815"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100020645"
+            },
+            {
+              "scheme": "ISNI",
+              "value": "0000000121512636"
+            },
+            {
+              "scheme": "Wikidata",
+              "value": "Q4791437"
+            },
+            {
+              "scheme": "Wikidata",
+              "value": "Q4791440"
+            },
+            {
+              "scheme": "OrgRef",
+              "value": "1859"
+            },
+            {
+              "scheme": "GRID",
+              "value": "grid.215654.1"
+            },
+            {
+              "scheme": "ISNI",
+              "value": "0000000406268593"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100010407"
+            },
+            {
+              "scheme": "ROR",
+              "value": "https://ror.org/03efmqc40"
+            },
+            {
+              "scheme": "FundRef",
+              "value": "100020964"
+            }
+          ]
+        },
+        {
+          "legalName": "University of Glasgow",
+          "acronym": "University of Glasgow",
+          "id": "pending_org_::e4be4d491fe5253ade27338a39e35f0f",
+          "pids": null
+        },
+        {
+          "legalName": "MTA Centre for Ecological Research",
+          "acronym": "MTA ÖK",
+          "id": "openorgs____::6137bb5f666b465dd373ffce9112ecd7",
+          "pids": [
+            {
+              "scheme": "PIC",
+              "value": "954674292"
+            },
+            {
+              "scheme": "OrgReg",
+              "value": "HU1036"
+            },
+            {
+              "scheme": "PIC",
+              "value": "986545582"
+            },
+            {
+              "scheme": "PIC",
+              "value": "999459386"
+            },
+            {
+              "scheme": "ROR",
+              "value": "https://ror.org/04bhfmv97"
+            },
+            {
+              "scheme": "GRID",
+              "value": "grid.481817.3"
+            }
+          ]
+        },
+        {
+          "legalName": "Arizona State University, School of Earth and Space Exploration",
+          "acronym": "ASU, SESE",
+          "id": "pending_org_::7804bf745a2c86e8c78313a838be90d7",
+          "pids": null
+        }
+      ],
+      "communities": [
+        {
+          "code": "uarctic",
+          "label": "UArctic",
+          "provenance": null
+        }
+      ],
+      "collectedFrom": [
+        {
+          "key": "openaire____::081b82f96300b6a6e3d282bad31cb6e2",
+          "value": "Crossref"
+        },
+        {
+          "key": "opendoar____::8b6dd7db9af49e67306feb59a8bdc52c",
+          "value": "Europe PubMed Central"
+        },
+        {
+          "key": "opendoar____::eda80a3d5b344bc40f3bc04f65b7a357",
+          "value": "PubMed Central"
+        }
+      ],
+      "instances": [
+        {
+          "pids": [
+            {
+              "scheme": "doi",
+              "value": "10.1038/s41586-023-06600-9"
+            }
+          ],
+          "license": "CC BY",
+          "accessRight": {
+            "code": "c_abf2",
+            "label": "OPEN",
+            "scheme": "http://vocabularies.coar-repositories.org/documentation/access_rights/",
+            "openAccessRoute": "hybrid"
+          },
+          "type": "Article",
+          "urls": [
+            "https://doi.org/10.1038/s41586-023-06600-9"
+          ],
+          "publicationDate": "2023-10-04",
+          "refereed": "peerReviewed",
+          "hostedBy": {
+            "key": "issn___print::f77babb14c4bed449c5b3efe5347c4c5",
+            "value": "Nature"
+          },
+          "collectedFrom": {
+            "key": "openaire____::081b82f96300b6a6e3d282bad31cb6e2",
+            "value": "Crossref"
+          }
+        },
+        {
+          "pids": [
+            {
+              "scheme": "pmid",
+              "value": "37794189"
+            },
+            {
+              "scheme": "pmc",
+              "value": "PMC10567559"
+            }
+          ],
+          "alternateIdentifiers": [
+            {
+              "scheme": "doi",
+              "value": "10.1038/s41586-023-06600-9"
+            }
+          ],
+          "type": "Article",
+          "urls": [
+            "https://pubmed.ncbi.nlm.nih.gov/37794189"
+          ],
+          "publicationDate": "2023-10-26",
+          "refereed": "nonPeerReviewed",
+          "hostedBy": {
+            "key": "issn___print::f77babb14c4bed449c5b3efe5347c4c5",
+            "value": "Nature"
+          },
+          "collectedFrom": {
+            "key": "opendoar____::8b6dd7db9af49e67306feb59a8bdc52c",
+            "value": "Europe PubMed Central"
+          }
+        },
+        {
+          "alternateIdentifiers": [
+            {
+              "scheme": "doi",
+              "value": "10.1038/s41586-023-06600-9"
+            }
+          ],
+          "license": "CC BY",
+          "accessRight": {
+            "code": "c_abf2",
+            "label": "OPEN",
+            "scheme": "http://vocabularies.coar-repositories.org/documentation/access_rights/",
+            "openAccessRoute": null
+          },
+          "type": "Other literature type",
+          "urls": [
+            "http://dx.doi.org/10.1038/s41586-023-06600-9"
+          ],
+          "publicationDate": "2023-10-04",
+          "refereed": "nonPeerReviewed",
+          "hostedBy": {
+            "key": "opendoar____::eda80a3d5b344bc40f3bc04f65b7a357",
+            "value": "PubMed Central"
+          },
+          "collectedFrom": {
+            "key": "opendoar____::eda80a3d5b344bc40f3bc04f65b7a357",
+            "value": "PubMed Central"
+          }
+        }
+      ],
+      "isGreen": true,
+      "isInDiamondJournal": false
+    }
+  ]
+}

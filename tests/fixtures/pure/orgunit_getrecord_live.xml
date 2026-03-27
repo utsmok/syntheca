@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd https://www.openaire.eu/cerif-profile/1.2/ https://www.openaire.eu/schema/cris/1.2/openaire-cerif-profile.xsd">
+  <responseDate>2026-03-27T01:46:15Z</responseDate>
+  <request identifier="oai:ris.utwente.nl:openaire_cris_orgunits/491145c6-1c9b-4338-aedd-98315c166d7e" metadataPrefix="oai_cerif_openaire" verb="GetRecord">https://ris.utwente.nl/ws/oai</request>
+  <GetRecord>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:openaire_cris_orgunits/491145c6-1c9b-4338-aedd-98315c166d7e</identifier>
+        <datestamp>2025-06-18T20:30:01Z</datestamp>
+        <setSpec>openaire_cris_orgunits</setSpec>
+      </header>
+      <metadata>
+        <cerif:OrgUnit xmlns:sc="https://www.openaire.eu/cerif-profile/vocab/OpenAIRE_Service_Compatibility" xmlns:ar="http://purl.org/coar/access_right" xmlns:pubt="https://www.openaire.eu/cerif-profile/vocab/COAR_Publication_Types" xmlns:prot="https://www.openaire.eu/cerif-profile/vocab/COAR_Product_Types" xmlns:funt="https://www.openaire.eu/cerif-profile/vocab/OpenAIRE_Funding_Types" xmlns:patt="https://www.openaire.eu/cerif-profile/vocab/COAR_Patent_Types" xmlns:cerif="https://www.openaire.eu/cerif-profile/1.2/" id="openaire_cris_orgunits/491145c6-1c9b-4338-aedd-98315c166d7e">
+          <cerif:Type scheme="/dk/atira/pure/organisation/organisationtypes/organisation">university</cerif:Type>
+          <cerif:Acronym>University of Twente</cerif:Acronym>
+          <cerif:Name xml:lang="en">University of Twente</cerif:Name>
+          <cerif:Identifier type="Scopus affiliation ID">60020599</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">60084325</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">108444098</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">112454813</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">104046104</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">105625767</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">107090451</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">120473199</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">118429947</cerif:Identifier>
+          <cerif:Identifier type="Scopus affiliation ID">60017915</cerif:Identifier>
+        </cerif:OrgUnit>
+      </metadata>
+    </record>
+  </GetRecord>
+</OAI-PMH>

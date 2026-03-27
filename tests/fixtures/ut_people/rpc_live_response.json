@@ -1,0 +1,18 @@
+{
+  "error": null,
+  "id": 1,
+  "result": {
+    "options": {
+      "category": [],
+      "department": [],
+      "faculty": [],
+      "langcode": "en",
+      "page": 0,
+      "query": "Sam Mok",
+      "resultsperpage": 5,
+      "type": []
+    },
+    "resultshtml": "<div class=\"ut-person-tile \" data-link=\"s.mok\"><button class=\"ut-person-accordionheader\" type=\"button\"><img src=\"/.wh/ea/uc/ia0cf841901036cc6f201fe1d8b030d693c495e040aaf0801e3a000a0008041/smok.jpg\" class=\"ut-person-tile__image\" /><div class=\"ut-person-tile__names\"><h3 class=\"ut-person-tile__title\">Mok, S. (Samuel)</h3><div class=\"ut-person-tile__roles\">Information Specialist EEMCS</div></div></button><div class=\"ut-person-tile__specs\"><div class=\"ut-person-tile__orgs\" style=\"--specrows: 2;\"><div>EEMCS</div><div>LISA-EIS</div></div><div class=\"ut-person-tile__location\" ><div>Zilverling 1039</div></div><div class=\"ut-person-tile__phone\" ><a href=\"tel:+31534897943\"><span class=\"phone__part\">+31</span><span class=\"phone__part\">53</span><span class=\"phone__part\">489</span><span class=\"phone__part phone__part--last\">7943</span></a></div><div class=\"ut-person-tile__mail\"><a href=\"mailto:[redacted-email]\"><span class=\"icon UT-icon-UT_icon_15_mail-24px\" aria-label=\"E-mail\"></span><span class=\"text\">[redacted-email]</span></a></div><div class=\"ut-person-tile__profilelink\"><a href=\"https://people.utwente.nl/s.mok\"><span>Show full details</span></a></div></div></div><div class=\"ut-person-tile \" data-link=\"s.altnji\"><button class=\"ut-person-accordionheader\" type=\"button\"><div class=\"ut-person-tile__image-placeholder\"></div><div class=\"ut-person-tile__names\"><h3 class=\"ut-person-tile__title\">Altnji, S. (Sam)</h3><div class=\"ut-person-tile__roles\">Assistant Professor</div></div></button><div class=\"ut-person-tile__specs\"><div class=\"ut-person-tile__orgs\" ><div>ET-DPM-IdPDE</div></div><div class=\"ut-person-tile__location\" ><div>Horst Complex W231</div></div><div class=\"ut-person-tile__phone\" ><a href=\"tel:+31534897610\"><span class=\"phone__part\">+31</span><span class=\"phone__part\">53</span><span class=\"phone__part\">489</span><span class=\"phone__part phone__part--last\">7610</span></a></div><div class=\"ut-person-tile__mail\"><a href=\"mailto:[redacted-email]\"><span class=\"icon UT-icon-UT_icon_15_mail-24px\" aria-label=\"E-mail\"></span><span class=\"text\">[redacted-email]</span></a></div><div class=\"ut-person-tile__profilelink\"><a href=\"https://people.utwente.nl/s.altnji\"><span>Show full details</span></a></div></div></div><div class=\"ut-person-tile \" data-link=\"s.f.kroezen\"><button class=\"ut-person-accordionheader\" type=\"button\"><div class=\"ut-person-tile__image-placeholder\"></div><div class=\"ut-person-tile__names\"><h3 class=\"ut-person-tile__title\">Kroezen, S.F. (Sam)</h3><div class=\"ut-person-tile__roles\">PhD Candidate (Guest)</div></div></button><div class=\"ut-person-tile__specs\"><div class=\"ut-person-tile__orgs\" ><div>ET-BE-BDDP</div></div><div class=\"ut-person-tile__location\" ></div><div class=\"ut-person-tile__phone\" ><a href=\"tel:+31534891640\"><span class=\"phone__part\">+31</span><span class=\"phone__part\">53</span><span class=\"phone__part\">489</span><span class=\"phone__part phone__part--last\">1640</span></a></div><div class=\"ut-person-tile__mail\"><a href=\"mailto:[re",
+    "totalcount": 51
+  }
+}

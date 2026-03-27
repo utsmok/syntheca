@@ -1,0 +1,602 @@
+{
+  "meta": {
+    "count": 1,
+    "db_response_time_ms": 18,
+    "page": 1,
+    "per_page": 1,
+    "groups_count": null,
+    "cost_usd": 0.0001
+  },
+  "results": [
+    {
+      "id": "https://openalex.org/W4387332482",
+      "doi": "https://doi.org/10.1038/s41586-023-06600-9",
+      "title": "Assembly theory explains and quantifies selection and evolution",
+      "display_name": "Assembly theory explains and quantifies selection and evolution",
+      "publication_year": 2023,
+      "publication_date": "2023-10-04",
+      "ids": {
+        "openalex": "https://openalex.org/W4387332482",
+        "doi": "https://doi.org/10.1038/s41586-023-06600-9",
+        "pmid": "https://pubmed.ncbi.nlm.nih.gov/37794189"
+      },
+      "language": "en",
+      "primary_location": {
+        "id": "doi:10.1038/s41586-023-06600-9",
+        "is_oa": true,
+        "landing_page_url": "https://doi.org/10.1038/s41586-023-06600-9",
+        "pdf_url": "https://www.nature.com/articles/s41586-023-06600-9.pdf",
+        "source": {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "issn_l": "…truncated-depth…",
+          "issn": "…truncated-depth…",
+          "is_oa": "…truncated-depth…",
+          "is_in_doaj": "…truncated-depth…",
+          "is_core": "…truncated-depth…",
+          "host_organization": "…truncated-depth…",
+          "host_organization_name": "…truncated-depth…",
+          "host_organization_lineage": "…truncated-depth…",
+          "host_organization_lineage_names": "…truncated-depth…",
+          "type": "…truncated-depth…"
+        },
+        "license": "cc-by",
+        "license_id": "https://openalex.org/licenses/cc-by",
+        "version": "publishedVersion",
+        "is_accepted": true,
+        "is_published": true,
+        "raw_source_name": "Nature",
+        "raw_type": "journal-article"
+      },
+      "type": "article",
+      "indexed_in": [
+        "crossref",
+        "pubmed"
+      ],
+      "open_access": {
+        "is_oa": true,
+        "oa_status": "hybrid",
+        "oa_url": "https://www.nature.com/articles/s41586-023-06600-9.pdf",
+        "any_repository_has_fulltext": true
+      },
+      "authorships": [
+        {
+          "author_position": "…truncated-depth…",
+          "author": "…truncated-depth…",
+          "institutions": "…truncated-depth…",
+          "countries": "…truncated-depth…",
+          "is_corresponding": "…truncated-depth…",
+          "raw_author_name": "…truncated-depth…",
+          "raw_affiliation_strings": "…truncated-depth…",
+          "affiliations": "…truncated-depth…"
+        },
+        {
+          "author_position": "…truncated-depth…",
+          "author": "…truncated-depth…",
+          "institutions": "…truncated-depth…",
+          "countries": "…truncated-depth…",
+          "is_corresponding": "…truncated-depth…",
+          "raw_author_name": "…truncated-depth…",
+          "raw_affiliation_strings": "…truncated-depth…",
+          "affiliations": "…truncated-depth…"
+        },
+        "…truncated 4 additional items…"
+      ],
+      "institutions": [],
+      "countries_distinct_count": 3,
+      "institutions_distinct_count": 6,
+      "corresponding_author_ids": [
+        "https://openalex.org/A5118899654"
+      ],
+      "corresponding_institution_ids": [
+        "https://openalex.org/I7882870"
+      ],
+      "apc_list": {
+        "value": 9750,
+        "currency": "EUR",
+        "value_usd": 11690
+      },
+      "apc_paid": {
+        "value": 9750,
+        "currency": "EUR",
+        "value_usd": 11690
+      },
+      "fwci": 27.4084,
+      "has_fulltext": true,
+      "cited_by_count": 152,
+      "citation_normalized_percentile": {
+        "value": 0.9983596,
+        "is_in_top_1_percent": true,
+        "is_in_top_10_percent": true
+      },
+      "cited_by_percentile_year": {
+        "min": 89,
+        "max": 100
+      },
+      "biblio": {
+        "volume": "622",
+        "issue": "7982",
+        "first_page": "321",
+        "last_page": "328"
+      },
+      "is_retracted": false,
+      "is_paratext": false,
+      "is_xpac": false,
+      "primary_topic": {
+        "id": "https://openalex.org/T11445",
+        "display_name": "Origins and Evolution of Life",
+        "score": 0.9966999888420105,
+        "subfield": {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…"
+        },
+        "field": {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…"
+        },
+        "domain": {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…"
+        }
+      },
+      "topics": [
+        {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "score": "…truncated-depth…",
+          "subfield": "…truncated-depth…",
+          "field": "…truncated-depth…",
+          "domain": "…truncated-depth…"
+        },
+        {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "score": "…truncated-depth…",
+          "subfield": "…truncated-depth…",
+          "field": "…truncated-depth…",
+          "domain": "…truncated-depth…"
+        },
+        "…truncated 1 additional items…"
+      ],
+      "keywords": [
+        {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "score": "…truncated-depth…"
+        },
+        {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "score": "…truncated-depth…"
+        },
+        "…truncated 15 additional items…"
+      ],
+      "concepts": [
+        {
+          "id": "…truncated-depth…",
+          "wikidata": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "level": "…truncated-depth…",
+          "score": "…truncated-depth…"
+        },
+        {
+          "id": "…truncated-depth…",
+          "wikidata": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "level": "…truncated-depth…",
+          "score": "…truncated-depth…"
+        },
+        "…truncated 17 additional items…"
+      ],
+      "mesh": [
+        {
+          "descriptor_ui": "…truncated-depth…",
+          "descriptor_name": "…truncated-depth…",
+          "qualifier_ui": "…truncated-depth…",
+          "qualifier_name": "…truncated-depth…",
+          "is_major_topic": "…truncated-depth…"
+        },
+        {
+          "descriptor_ui": "…truncated-depth…",
+          "descriptor_name": "…truncated-depth…",
+          "qualifier_ui": "…truncated-depth…",
+          "qualifier_name": "…truncated-depth…",
+          "is_major_topic": "…truncated-depth…"
+        },
+        "…truncated 34 additional items…"
+      ],
+      "locations_count": 4,
+      "locations": [
+        {
+          "id": "…truncated-depth…",
+          "is_oa": "…truncated-depth…",
+          "landing_page_url": "…truncated-depth…",
+          "pdf_url": "…truncated-depth…",
+          "source": "…truncated-depth…",
+          "license": "…truncated-depth…",
+          "license_id": "…truncated-depth…",
+          "version": "…truncated-depth…",
+          "is_accepted": "…truncated-depth…",
+          "is_published": "…truncated-depth…",
+          "raw_source_name": "…truncated-depth…",
+          "raw_type": "…truncated-depth…"
+        },
+        {
+          "id": "…truncated-depth…",
+          "is_oa": "…truncated-depth…",
+          "landing_page_url": "…truncated-depth…",
+          "pdf_url": "…truncated-depth…",
+          "source": "…truncated-depth…",
+          "license": "…truncated-depth…",
+          "license_id": "…truncated-depth…",
+          "version": "…truncated-depth…",
+          "is_accepted": "…truncated-depth…",
+          "is_published": "…truncated-depth…",
+          "raw_source_name": "…truncated-depth…",
+          "raw_type": "…truncated-depth…"
+        },
+        "…truncated 2 additional items…"
+      ],
+      "best_oa_location": {
+        "id": "doi:10.1038/s41586-023-06600-9",
+        "is_oa": true,
+        "landing_page_url": "https://doi.org/10.1038/s41586-023-06600-9",
+        "pdf_url": "https://www.nature.com/articles/s41586-023-06600-9.pdf",
+        "source": {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "issn_l": "…truncated-depth…",
+          "issn": "…truncated-depth…",
+          "is_oa": "…truncated-depth…",
+          "is_in_doaj": "…truncated-depth…",
+          "is_core": "…truncated-depth…",
+          "host_organization": "…truncated-depth…",
+          "host_organization_name": "…truncated-depth…",
+          "host_organization_lineage": "…truncated-depth…",
+          "host_organization_lineage_names": "…truncated-depth…",
+          "type": "…truncated-depth…"
+        },
+        "license": "cc-by",
+        "license_id": "https://openalex.org/licenses/cc-by",
+        "version": "publishedVersion",
+        "is_accepted": true,
+        "is_published": true,
+        "raw_source_name": "Nature",
+        "raw_type": "journal-article"
+      },
+      "sustainable_development_goals": [],
+      "awards": [
+        {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "funder_award_id": "…truncated-depth…",
+          "funder_id": "…truncated-depth…",
+          "funder_display_name": "…truncated-depth…"
+        },
+        {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "funder_award_id": "…truncated-depth…",
+          "funder_id": "…truncated-depth…",
+          "funder_display_name": "…truncated-depth…"
+        },
+        "…truncated 16 additional items…"
+      ],
+      "funders": [
+        {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "ror": "…truncated-depth…"
+        },
+        {
+          "id": "…truncated-depth…",
+          "display_name": "…truncated-depth…",
+          "ror": "…truncated-depth…"
+        },
+        "…truncated 5 additional items…"
+      ],
+      "has_content": {
+        "grobid_xml": false,
+        "pdf": true
+      },
+      "content_urls": {
+        "pdf": "https://content.openalex.org/works/W4387332482.pdf"
+      },
+      "referenced_works_count": 23,
+      "referenced_works": [
+        "https://openalex.org/W134271320",
+        "https://openalex.org/W1984613282",
+        "…truncated 21 additional items…"
+      ],
+      "related_works": [
+        "https://openalex.org/W2384575798",
+        "https://openalex.org/W2265189214",
+        "…truncated 8 additional items…"
+      ],
+      "abstract_inverted_index": {
+        "Scientists": [
+          "…truncated-depth…"
+        ],
+        "have": [
+          "…truncated-depth…"
+        ],
+        "grappled": [
+          "…truncated-depth…"
+        ],
+        "with": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "reconciling": [
+          "…truncated-depth…"
+        ],
+        "biological": [
+          "…truncated-depth…"
+        ],
+        "evolution<sup>1,2</sup>": [
+          "…truncated-depth…"
+        ],
+        "the": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 9 additional items…"
+        ],
+        "immutable": [
+          "…truncated-depth…"
+        ],
+        "laws": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 2 additional items…"
+        ],
+        "of": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 11 additional items…"
+        ],
+        "Universe": [
+          "…truncated-depth…"
+        ],
+        "defined": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "by": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "physics.": [
+          "…truncated-depth…"
+        ],
+        "These": [
+          "…truncated-depth…"
+        ],
+        "underpin": [
+          "…truncated-depth…"
+        ],
+        "life's": [
+          "…truncated-depth…"
+        ],
+        "origin,": [
+          "…truncated-depth…"
+        ],
+        "evolution": [
+          "…truncated-depth…"
+        ],
+        "and": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 5 additional items…"
+        ],
+        "development": [
+          "…truncated-depth…"
+        ],
+        "human": [
+          "…truncated-depth…"
+        ],
+        "culture": [
+          "…truncated-depth…"
+        ],
+        "technology,": [
+          "…truncated-depth…"
+        ],
+        "yet": [
+          "…truncated-depth…"
+        ],
+        "they": [
+          "…truncated-depth…"
+        ],
+        "do": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "not": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 2 additional items…"
+        ],
+        "predict": [
+          "…truncated-depth…"
+        ],
+        "emergence": [
+          "…truncated-depth…"
+        ],
+        "these": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 1 additional items…"
+        ],
+        "phenomena.": [
+          "…truncated-depth…"
+        ],
+        "Evolutionary": [
+          "…truncated-depth…"
+        ],
+        "theory": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "explains": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "why": [
+          "…truncated-depth…"
+        ],
+        "some": [
+          "…truncated-depth…"
+        ],
+        "things": [
+          "…truncated-depth…"
+        ],
+        "exist": [
+          "…truncated-depth…"
+        ],
+        "others": [
+          "…truncated-depth…"
+        ],
+        "through": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "lens": [
+          "…truncated-depth…"
+        ],
+        "selection.": [
+          "…truncated-depth…"
+        ],
+        "To": [
+          "…truncated-depth…"
+        ],
+        "comprehend": [
+          "…truncated-depth…"
+        ],
+        "how": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "diverse,": [
+          "…truncated-depth…"
+        ],
+        "open-ended": [
+          "…truncated-depth…"
+        ],
+        "forms": [
+          "…truncated-depth…"
+        ],
+        "can": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "emerge": [
+          "…truncated-depth…"
+        ],
+        "from": [
+          "…truncated-depth…"
+        ],
+        "physics": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 2 additional items…"
+        ],
+        "without": [
+          "…truncated-depth…"
+        ],
+        "an": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "inherent": [
+          "…truncated-depth…"
+        ],
+        "design": [
+          "…truncated-depth…"
+        ],
+        "blueprint,": [
+          "…truncated-depth…"
+        ],
+        "a": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 5 additional items…"
+        ],
+        "new": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "approach": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "to": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 2 additional items…"
+        ],
+        "understanding": [
+          "…truncated-depth…"
+        ],
+        "quantifying": [
+          "…truncated-depth…"
+        ],
+        "selection": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "is": [
+          "…truncated-depth…"
+        ],
+        "necessary<sup>3-5</sup>.": [
+          "…truncated-depth…"
+        ],
+        "We": [
+          "…truncated-depth…",
+          "…truncated-depth…"
+        ],
+        "present": [
+          "…truncated-depth…"
+        ],
+        "assembly": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 1 additional items…"
+        ],
+        "(AT)": [
+          "…truncated-depth…"
+        ],
+        "as": [
+          "…truncated-depth…",
+          "…truncated-depth…",
+          "…truncated 1 additional items…"
+        ],
+        "framework": [
+          "…truncated-depth…"
+        ],
+        "that": [
+          "…truncated-depth…"
+        ],
+        "does": [
+          "…truncated-depth…"
+        ],
+        "alter": [
+          "…truncated-depth…"
+        ],
+        "__truncated_keys__": 76
+      },
+      "counts_by_year": [
+        {
+          "year": "…truncated-depth…",
+          "cited_by_count": "…truncated-depth…"
+        },
+        {
+          "year": "…truncated-depth…",
+          "cited_by_count": "…truncated-depth…"
+        },
+        "…truncated 3 additional items…"
+      ],
+      "updated_date": "2026-03-20T23:20:44.827607",
+      "created_date": "2025-10-10T00:00:00"
+    }
+  ],
+  "group_by": []
+}

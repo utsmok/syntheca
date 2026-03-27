@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd https://www.openaire.eu/cerif-profile/1.2/ https://www.openaire.eu/schema/cris/1.2/openaire-cerif-profile.xsd">
+  <responseDate>2026-03-27T01:46:14Z</responseDate>
+  <request identifier="oai:ris.utwente.nl:openaire_cris_publications/a0567182-e28c-405e-92a5-e94ef6bcec21" metadataPrefix="oai_cerif_openaire" verb="GetRecord">https://ris.utwente.nl/ws/oai</request>
+  <GetRecord>
+    <record>
+      <header>
+        <identifier>oai:ris.utwente.nl:openaire_cris_publications/a0567182-e28c-405e-92a5-e94ef6bcec21</identifier>
+        <datestamp>2026-02-07T06:37:19Z</datestamp>
+        <setSpec>openaire_cris_publications</setSpec>
+      </header>
+      <metadata>
+        <cerif:Publication xmlns:sc="https://www.openaire.eu/cerif-profile/vocab/OpenAIRE_Service_Compatibility" xmlns:ar="http://purl.org/coar/access_right" xmlns:pubt="https://www.openaire.eu/cerif-profile/vocab/COAR_Publication_Types" xmlns:prot="https://www.openaire.eu/cerif-profile/vocab/COAR_Product_Types" xmlns:funt="https://www.openaire.eu/cerif-profile/vocab/OpenAIRE_Funding_Types" xmlns:patt="https://www.openaire.eu/cerif-profile/vocab/COAR_Patent_Types" xmlns:cerif="https://www.openaire.eu/cerif-profile/1.2/" id="openaire_cris_publications/a0567182-e28c-405e-92a5-e94ef6bcec21">
+          <pubt:Type xmlns:pure="https://pure.elsevier.com/schema/extensions/oai_cerif_openaire" pure:publicationCategory="/dk/atira/pure/researchoutput/category/professional">http://purl.org/coar/resource_type/c_93fc</pubt:Type>
+          <cerif:Language>en</cerif:Language>
+          <cerif:Title xml:lang="en">Reallocating resources to focused factories: a case study in chemotherapy</cerif:Title>
+          <cerif:Subtitle xml:lang="en"></cerif:Subtitle>
+          <cerif:PublicationDate>2008</cerif:PublicationDate>
+          <cerif:ISBN medium="http://issn.org/vocabularies/Medium#Print">9789038619941</cerif:ISBN>
+          <cerif:URL>https://research.utwente.nl/en/publications/a0567182-e28c-405e-92a5-e94ef6bcec21</cerif:URL>
+          <cerif:Authors>
+            <cerif:Author>
+              <cerif:Person id="2af472f6-afab-41e9-857c-abe605adf18d">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>Vanberkel</cerif:FamilyNames>
+                  <cerif:FirstNames>Peter T.</cerif:FirstNames>
+                </cerif:PersonName>
+              </cerif:Person>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="feb87d2b-bd3d-4343-bc74-999d4bf8a41f">
+                  <cerif:Name xml:lang="en">Stochastic Operations Research</cerif:Name>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="91869f52-72ee-4e39-a933-458a3dc67260">
+                  <cerif:Acronym>CHOIR</cerif:Acronym>
+                  <cerif:Name xml:lang="en">Center for Healthcare Operations Improvement and Research</cerif:Name>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+            </cerif:Author>
+            <cerif:Author>
+              <cerif:Person id="cea339f9-9df3-474e-86a2-2da0c7f68b09">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>Boucherie</cerif:FamilyNames>
+                  <cerif:FirstNames>Richard J.</cerif:FirstNames>
+                </cerif:PersonName>
+              </cerif:Person>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="feb87d2b-bd3d-4343-bc74-999d4bf8a41f">
+                  <cerif:Name xml:lang="en">Stochastic Operations Research</cerif:Name>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="91869f52-72ee-4e39-a933-458a3dc67260">
+                  <cerif:Acronym>CHOIR</cerif:Acronym>
+                  <cerif:Name xml:lang="en">Center for Healthcare Operations Improvement and Research</cerif:Name>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+            </cerif:Author>
+            <cerif:Author>
+              <cerif:Person id="f701ce7a-dcdc-45d2-b138-0feda4cc2f72">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>Hans</cerif:FamilyNames>
+                  <cerif:FirstNames>Erwin W.</cerif:FirstNames>
+                </cerif:PersonName>
+              </cerif:Person>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="91869f52-72ee-4e39-a933-458a3dc67260">
+                  <cerif:Acronym>CHOIR</cerif:Acronym>
+                  <cerif:Name xml:lang="en">Center for Healthcare Operations Improvement and Research</cerif:Name>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+            </cerif:Author>
+            <cerif:Author>
+              <cerif:Person id="b52c3bad-89ad-4c30-bbaa-7389ecd969ac">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>Hurink</cerif:FamilyNames>
+                  <cerif:FirstNames>Johann L.</cerif:FirstNames>
+                </cerif:PersonName>
+              </cerif:Person>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="f747ad65-4c82-42ab-80a3-11334208dd7f">
+                  <cerif:Name xml:lang="en">Discrete Mathematics and Mathematical Programming</cerif:Name>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+            </cerif:Author>
+            <cerif:Author>
+              <cerif:Person id="d09a194d-6623-41d3-bb41-261ec6bd2658">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>Litvak</cerif:FamilyNames>
+                  <cerif:FirstNames>Nelly</cerif:FirstNames>
+                </cerif:PersonName>
+              </cerif:Person>
+              <cerif:Affiliation>
+                <cerif:OrgUnit id="feb87d2b-bd3d-4343-bc74-999d4bf8a41f">
+                  <cerif:Name xml:lang="en">Stochastic Operations Research</cerif:Name>
+                </cerif:OrgUnit>
+              </cerif:Affiliation>
+            </cerif:Author>
+            <cerif:Author>
+              <cerif:Person id="6ad6b17e-a015-4ef9-b40f-eecd22a04354">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>van Lent</cerif:FamilyNames>
+                  <cerif:FirstNames>Wineke A.M.</cerif:FirstNames>
+                </cerif:PersonName>
+              </cerif:Person>
+            </cerif:Author>
+            <cerif:Author>
+              <cerif:Person id="449cf615-e9d2-4126-84df-9144e6b22ea1">
+                <cerif:PersonName>
+                  <cerif:FamilyNames>van Harten</cerif:FamilyNames>
+                  <cerif:FirstNames>Wim H.</cerif:FirstNames>
+                </cerif:PersonName>
+              </cerif:Person>
+            </cerif:Author>
+          </cerif:Authors>
+          <cerif:Publishers>
+            <cerif:Publisher>
+              <cerif:OrgUnit>
+                <cerif:Name xml:lang="en">University of Twente</cerif:Name>
+              </cerif:OrgUnit>
+            </cerif:Publisher>
+          </cerif:Publishers>
+          <cerif:Keyword xml:lang="en">Resource allocation</cerif:Keyword>
+          <cerif:Keyword xml:lang="en">Slotted queueing model</cerif:Keyword>
+          <cerif:Keyword xml:lang="en">Capacity planning</cerif:Keyword>
+          <cerif:Keyword xml:lang="en">Chemotherapy</cerif:Keyword>
+          <cerif:Keyword xml:lang="en">Focused factory</cerif:Keyword>
+          <cerif:Abstract xml:lang="en">This study investigates the expected service performance associated with a proposal to reallocate resources from a centralized chemotherapy department to a breast cancer focused factory. Using a slotted queueing model we show that a decrease in performance is expected and calculate the amount of additional resources required to offset these losses. The model relies solely on typical outpatient scheduling system data, making the methodology easy to replicate in other outpatient clinic settings. Finally, the paper highlights important factors to consider when assigning capacity to focused factories. These considerations are generally relevant to other resource allocation decisions.</cerif:Abstract>
+          <cerif:Status scheme="/dk/atira/pure/researchoutput/status">published</cerif:Status>
+          <ar:Access>http://purl.org/coar/access_right/c_abf2</ar:Access>
+          <cerif:FileLocations>
+            <cerif:Medium>
+              <cerif:Type scheme="/dk/atira/pure/researchoutput/electronicversion/versiontype">publishersversion</cerif:Type>
+              <cerif:Title xml:lang="en">2008-XVanberkelBoucherieHansHurinkLitvakLentHarten-ORAHS.pdf</cerif:Title>
+              <cerif:URI>https://research.utwente.nl/files/5087962/2008-XVanberkelBoucherieHansHurinkLitvakLentHarten-ORAHS.pdf</cerif:URI>
+              <cerif:MimeType>application/octet-stream</cerif:MimeType>
+              <cerif:Size>177482</cerif:Size>
+              <ar:Access>http://purl.org/coar/access_right/c_abf2</ar:Access>
+            </cerif:Medium>
+          </cerif:FileLocations>
+        </cerif:Publication>
+      </metadata>
+    </record>
+  </GetRecord>
+</OAI-PMH>
