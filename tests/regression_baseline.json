@@ -1,30 +1,37 @@
 {
-  "_description": "Regression baseline metric definitions for syntheca pipeline outputs. These define the shape and expected ranges of quality metrics that should be tracked across pipeline runs. Actual baseline values will be populated after the first full pipeline run against a frozen input subset.",
-  "_version": "0.1.0",
-  "_created": "2026-03-26",
+  "_description": "Regression baseline metric definitions for syntheca pipeline outputs. These define the shape and expected ranges of quality metrics that should be tracked across pipeline runs.",
+  "_version": "0.2.0",
+  "_created": "2026-03-27",
+  "_baseline_status": "real",
+  "_parity_claim_rule": "Release parity for the frozen offline regression pack may be claimed only when this real baseline remains green; live endpoint smoke checks remain a separate sign-off gate.",
+  "_capture_rules": [
+    "Capture real baselines only from frozen, project-local artifacts committed under syntheca/tests/fixtures or generated offline from those fixtures.",
+    "Use audited live samples to refresh contract fixtures only; do not require network access in default parity or fixture tests.",
+    "Before changing _baseline_status to 'real', record every tracked metric from the supported offline regression pack and update fixture-area provenance notes if new artifacts were added."
+  ],
   "metrics": {
     "row_count": {
       "description": "Expected row counts by output type",
       "unit": "rows",
       "outputs": {
         "pure_publications": {
-          "baseline": null,
+          "baseline": 3,
           "note": "Total publications from Pure OAI-PMH"
         },
         "pure_persons": {
-          "baseline": null,
+          "baseline": 3,
           "note": "Total persons from Pure OAI-PMH"
         },
         "pure_orgunits": {
-          "baseline": null,
+          "baseline": 3,
           "note": "Total orgunits from Pure OAI-PMH"
         },
         "openalex_works": {
-          "baseline": null,
+          "baseline": 2,
           "note": "Total works matched via OpenAlex"
         },
         "merged_final": {
-          "baseline": null,
+          "baseline": 3,
           "note": "Total rows in final merged output"
         }
       }
@@ -32,35 +39,35 @@
     "doi_fill_rate": {
       "description": "Percentage of records that have a non-null DOI",
       "unit": "percent",
-      "baseline": null,
+      "baseline": 66.67,
       "tolerance": 2.0,
       "note": "Should remain stable unless source data changes"
     },
     "openalex_hit_rate": {
       "description": "Percentage of Pure publications successfully matched to an OpenAlex work",
       "unit": "percent",
-      "baseline": null,
+      "baseline": 100.0,
       "tolerance": 3.0,
       "note": "Measured as matched / total_with_doi * 100"
     },
     "org_mapping_coverage": {
       "description": "Percentage of authors with at least one resolved organizational unit mapping",
       "unit": "percent",
-      "baseline": null,
+      "baseline": 100.0,
       "tolerance": 2.0,
       "note": "Resolving faculty/department affiliations through the Pure org hierarchy"
     },
     "unresolved_person_count": {
       "description": "Count of persons that could not be resolved to any UT People page or org mapping",
       "unit": "count",
-      "baseline": null,
+      "baseline": 1,
       "tolerance_pct": 5.0,
       "note": "Should decrease as disambiguation logic improves"
     },
     "title_fallback_count": {
       "description": "Count of OpenAlex matches that used title-based fuzzy matching instead of DOI",
       "unit": "count",
-      "baseline": null,
+      "baseline": 1,
       "tolerance_pct": 10.0,
       "note": "Title matches are less reliable than DOI matches; track to identify drift"
     }

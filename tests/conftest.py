@@ -13,12 +13,26 @@ import pytest
 # ---------------------------------------------------------------------------
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
+FIXTURE_AREA_NAMES = (
+    "openalex",
+    "pure",
+    "openaire",
+    "ut_people",
+    "comparison",
+    "merged",
+)
 
 
 @pytest.fixture
 def fixtures_dir() -> pathlib.Path:
     """Return the path to the shared test fixtures directory."""
     return FIXTURES_DIR
+
+
+@pytest.fixture
+def fixture_area_dirs() -> dict[str, pathlib.Path]:
+    """Return the known per-area fixture directories keyed by area name."""
+    return {name: FIXTURES_DIR / name for name in FIXTURE_AREA_NAMES}
 
 
 # ---------------------------------------------------------------------------
