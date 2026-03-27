@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import polars as pl
 from loguru import logger
 
-from syntheca.processing.cleaning import normalize_doi
+from syntheca.processing.cleaning import normalize_doi_col_in_df
 
 # ---------------------------------------------------------------------------
 # Merge statistics
@@ -68,8 +68,8 @@ def merge_datasets(
         input_left=openalex_works_df.height,
         input_right=pure_publications_df.height,
     )
-    pure = normalize_doi(pure_publications_df, doi_col_pure, new_col="_norm_doi")
-    oa = normalize_doi(openalex_works_df, doi_col_openalex, new_col="_norm_doi")
+    pure = normalize_doi_col_in_df(pure_publications_df, doi_col_pure, new_col="_norm_doi")
+    oa = normalize_doi_col_in_df(openalex_works_df, doi_col_openalex, new_col="_norm_doi")
 
     merged = oa.join(pure, left_on="_norm_doi", right_on="_norm_doi", how="left", suffix="_pure")
     stats.output_rows = merged.height
@@ -103,7 +103,7 @@ def deduplicate(df: pl.DataFrame, doi_col: str = "doi", title_col: str = "title"
 
     """
     # Normalize DOIs, use helper
-    df_norm = normalize_doi(df, doi_col, new_col="_norm_doi")
+    df_norm = normalize_doi_col_in_df(df, doi_col, new_col="_norm_doi")
     # remove duplicates by DOI first
     df_with_doi = df_norm.filter(pl.col("_norm_doi").is_not_null())
     df_no_dups = df_with_doi.unique(subset=["_norm_doi"]) if df_with_doi.height else df_with_doi

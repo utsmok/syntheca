@@ -25,6 +25,7 @@ import polars as pl
 from pydantic import BaseModel, Field
 
 from syntheca.config.source_precedence import Source
+from syntheca.utils.polars_frames import robust_from_dicts
 
 # ---------------------------------------------------------------------------
 # Provenance
@@ -187,4 +188,4 @@ def canonicals_to_polars(
     """
     if not records:
         return pl.DataFrame()
-    return pl.from_dicts([r.to_flat_dict() for r in records])
+    return robust_from_dicts([r.to_flat_dict() for r in records])

@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 
 import polars as pl
 
+from syntheca.utils.polars_frames import robust_from_dicts
+
 if TYPE_CHECKING:
     from syntheca.analysis.coauthorship import CoauthorshipReport
     from syntheca.analysis.policy_citations import PolicyCitationReport
@@ -169,7 +171,7 @@ def save_policy_citation_report(
         row["evidence"] = "; ".join(row.get("evidence", []))
 
     if rows:
-        pl.from_dicts(rows).write_csv(candidates_path)
+        robust_from_dicts(rows).write_csv(candidates_path)
     else:
         candidates_path.write_text("", encoding="utf-8")
 

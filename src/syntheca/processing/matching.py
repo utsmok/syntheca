@@ -11,6 +11,8 @@ from typing import Any
 import polars as pl
 from Levenshtein import ratio
 
+from syntheca.utils.polars_frames import robust_from_dicts
+
 UT_OPENALEX_ID = "https://openalex.org/I94624287"
 
 
@@ -120,7 +122,7 @@ async def resolve_missing_ids(
     if not candidates:
         return df
 
-    cand_df = pl.from_dicts(candidates)
+    cand_df = robust_from_dicts(candidates)
     # Join back into original df on title and fill missing id/doi
     out = df.join(cand_df, left_on=title_col, right_on="search_title", how="left")
     # when id is null but oa_id found, set it; same for doi

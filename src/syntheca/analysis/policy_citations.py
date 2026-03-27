@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from syntheca.clients.openaire import OpenAIREClient
 from syntheca.clients.openalex import OpenAlexClient
+from syntheca.utils.polars_frames import robust_from_dicts
 
 # ---------------------------------------------------------------------------
 # Classification configuration — all thresholds are explicit & configurable
@@ -385,9 +386,8 @@ def export_review_queue(report: PolicyCitationReport, output_path: Path) -> None
     if output_path.suffix == ".xlsx":
         try:
             import openpyxl  # noqa: F401 - presence check
-            import polars as pl
 
-            df = pl.from_dicts(rows)
+            df = robust_from_dicts(rows)
             df.write_excel(output_path)
         except ImportError:
             # fall back to CSV if openpyxl is unavailable

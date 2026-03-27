@@ -9,13 +9,12 @@ compares them against an internal Syntheca DataFrame to identify:
 * **Field mismatches** — matched by DOI but with divergent field values.
 
 Design decisions
-----------------
 * No Scopus API calls — works purely with local export files.
 * Supported inputs are document-level Scopus exports and SciVal publication
     detail exports already produced outside the product.
 * Source-list or journal-list workbooks are intentionally out of scope.
 * DOI is the primary matching key.  Matching reuses
-  :func:`syntheca.processing.cleaning.normalize_doi`.
+    :func:`syntheca.processing.cleaning.normalize_doi_col_in_df`.
 * Column-name matching is case-insensitive to tolerate different Scopus
   export versions and regional locale differences.
 """
@@ -28,7 +27,8 @@ from pathlib import Path
 
 import polars as pl
 
-from syntheca.processing.cleaning import normalize_doi
+from syntheca.processing.cleaning import normalize_doi_col_in_df
+from syntheca.utils.polars_frames import robust_from_dicts
 
 # ---------------------------------------------------------------------------
 # Expected column names in Scopus exports (canonical lower-case form)
@@ -84,7 +84,7 @@ class ScopusExportReader:
     Supports ``.xlsx``, ``.xls``, and ``.csv`` extensions.  Column names are
     normalized to the canonical lower-case forms defined in
     :data:`SCOPUS_COLUMN_ALIASES`.  DOIs are normalized using the pipeline's
-    existing :func:`~syntheca.processing.cleaning.normalize_doi`.
+    existing :func:`~syntheca.processing.cleaning.normalize_doi_col_in_df`.
 
     This reader is deliberately export-first: it accepts local document-export
     files, not live Scopus API responses and not source-list workbooks.
@@ -122,7 +122,7 @@ class ScopusExportReader:
 
         # Normalize DOIs if a doi column is present
         if "doi" in df.columns:
-            df = normalize_doi(df, "doi")
+            df = normalize_doi_col_in_df(df, "doi")
 
         return df
 
@@ -371,4 +371,4 @@ def _detect_mismatches(matched_joined: pl.DataFrame) -> pl.DataFrame:
             }
         )
 
-    return pl.from_dicts(rows)
+    return robust_from_dicts(rows)
