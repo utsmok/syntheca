@@ -61,10 +61,11 @@ def init_incremental_parquet(name: str, df: pl.DataFrame) -> pathlib.Path:
 
 
 def append_to_parquet(name: str, df: pl.DataFrame) -> pathlib.Path:
-    """Append rows to an existing parquet file, or create it if missing.
+    """Append a DataFrame to an existing parquet file, or create it if missing.
 
-    Reads the existing parquet (if any), vertically stacks the new rows,
-    and writes the combined DataFrame back to disk.
+    Uses ``pl.concat`` to merge with existing data.  Callers should batch
+    rows (e.g. one append per API batch, not per individual row) to avoid
+    O(n^2) read-rewrite overhead.
 
     Args:
         name: Logical name (without .parquet suffix).
