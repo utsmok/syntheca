@@ -157,40 +157,29 @@ class Pipeline:
 
         # If openalex_works_df is missing and we have an OpenAlex client, fetch via IDs
         if openalex_works_df is None and openalex_client is not None and openalex_ids:
-            pos = get_next_position()
-            try:
-                works = await openalex_client.get_works_by_ids(openalex_ids, position=pos)
-            except Exception as exc:
-                logger.warning(
-                    "OpenAlex retrieval failed after fallbacks; continuing pipeline with {} partial work(s): {}",
-                    0,
-                    exc,
-                )
-                works = []
-            # Reuse incrementally-persisted cache when available; otherwise convert
+            # Check cache before fetching (saves ~35 min on repeat runs)
             if settings.persist_intermediate:
-                from syntheca.utils.persistence import load_dataframe_parquet
+                from syntheca.utils.persistence import (
+                    load_dataframe_parquet,
+                    save_dataframe_parquet,
+                )
 
                 cached_oa = load_dataframe_parquet("openalex_works")
                 if cached_oa is not None and cached_oa.height:
+                    logger.info("Loading {} cached OpenAlex works, skipping API fetch", cached_oa.height)
                     openalex_works_df = cached_oa
-                else:
-                    rows = []
-                    for w in works:
-                        try:
-                            rows.append(dataclasses.asdict(w))
-                        except (TypeError, AttributeError) as exc:
-                            logger.debug("Could not convert Work to dict: {}", exc)
-                            rows.append(
-                                {
-                                    "id": getattr(w, "id", None),
-                                    "doi": getattr(w, "doi", None),
-                                    "display_name": getattr(w, "display_name", None),
-                                    "publication_year": getattr(w, "publication_year", None),
-                                }
-                            )
-                    openalex_works_df = robust_from_dicts(rows) if rows else pl.DataFrame()
-            else:
+
+            if openalex_works_df is None or not openalex_works_df.height:
+                pos = get_next_position()
+                try:
+                    works = await openalex_client.get_works_by_ids(openalex_ids, position=pos)
+                except Exception as exc:
+                    logger.warning(
+                        "OpenAlex retrieval failed after fallbacks; continuing pipeline with {} partial work(s): {}",
+                        0,
+                        exc,
+                    )
+                    works = []
                 rows = []
                 for w in works:
                     try:
@@ -206,6 +195,8 @@ class Pipeline:
                             }
                         )
                 openalex_works_df = robust_from_dicts(rows) if rows else pl.DataFrame()
+                if settings.persist_intermediate and openalex_works_df.height:
+                    save_dataframe_parquet(openalex_works_df, "openalex_works")
 
         oa_clean = (
             cleaning.clean_publications(openalex_works_df)
