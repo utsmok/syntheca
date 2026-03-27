@@ -7,6 +7,7 @@ convenience function designed for easy testing and scripted execution.
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import pathlib
 
@@ -396,7 +397,9 @@ class Pipeline:
 
                 candidates = []
                 if names_to_fetch:
-                    iterable = (
+                    _ut_concurrency = 10
+                    _ut_sem = asyncio.Semaphore(_ut_concurrency)
+                    bar = (
                         tqdm(
                             names_to_fetch,
                             desc="ut-people",
@@ -404,23 +407,37 @@ class Pipeline:
                             position=get_next_position(),
                         )
                         if settings.enable_progress
-                        else names_to_fetch
+                        else None
                     )
-                    for name in iterable:
+
+                    async def _resolve_one(name: str) -> dict | None:
                         try:
                             res = await ut_people_client.search_person(name)
                             if not res:
-                                continue
-                            # Take best candidate (already ranked by Levenshtein)
+                                return None
                             best = res[0]
                             profile_url = best.get("people_page_url")
                             if profile_url:
                                 org_details = await ut_people_client.scrape_profile(profile_url)
                                 best["org_details_pp"] = org_details
-                            candidates.append(best)
+                            return best
                         except (OSError, ValueError, KeyError, TypeError, httpx.HTTPStatusError, httpx.RequestError, RetryError) as exc:
                             logger.debug("UT People search failed for '{}': {}", name, exc)
-                            continue
+                            return None
+                        finally:
+                            if bar is not None:
+                                bar.update(1)
+
+                    async def _bounded_resolve(name: str) -> dict | None:
+                        async with _ut_sem:
+                            return await _resolve_one(name)
+
+                    results = await asyncio.gather(
+                        *[_bounded_resolve(n) for n in names_to_fetch]
+                    )
+                    candidates = [r for r in results if r is not None]
+                    if bar is not None:
+                        bar.close()
 
                 # Merge cached + freshly fetched
                 fetched_df = robust_from_dicts(candidates) if candidates else pl.DataFrame()
