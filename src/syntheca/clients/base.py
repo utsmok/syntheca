@@ -21,6 +21,7 @@ from tenacity import (
 )
 
 from syntheca.config import settings
+from syntheca.utils.caching import build_request_cache_key, load_raw_response, save_raw_response
 
 
 def _is_retriable_exception(exc: BaseException) -> bool:
@@ -101,10 +102,25 @@ class BaseClient:
         if "timeout" not in kwargs and self.timeout is not None:
             kwargs["timeout"] = self.timeout
 
+        cache_key: str | None = None
+        if settings.use_cache_for_retrieval:
+            cache_key = build_request_cache_key(method, url, **kwargs)
+            cached_response = load_raw_response(settings.cache_dir, cache_key)
+            if cached_response is not None:
+                self.logger.debug("Raw response cache hit for {} {}", method, url)
+                return cached_response
+
         try:
             response = await self.client.request(method, url, **kwargs)
             # httpx does not raise for 4xx/5xx unless we ask
             response.raise_for_status()
+            if cache_key is not None:
+                try:
+                    save_raw_response(settings.cache_dir, cache_key, response)
+                except OSError:
+                    self.logger.exception(
+                        "Failed to persist raw response cache for {} {}", method, url
+                    )
             return response
         except httpx.HTTPStatusError as e:
             # re-raise so tenacity can inspect and possibly retry
