@@ -1,6 +1,7 @@
 import polars as pl
 
 from syntheca.clients.ut_people import UTPeopleClient
+from syntheca.config import settings
 from syntheca.processing.enrichment import apply_manual_corrections, parse_scraped_org_details
 
 
@@ -96,3 +97,37 @@ def test_apply_manual_corrections_overlays_affiliations(tmp_path):
     # Expect the corrected row to include the known mapping from corrections.json
     vals = out["affiliation_ids_pure"].to_list()[0]
     assert vals is not None and isinstance(vals, list)
+
+
+def test_apply_manual_corrections_normalizes_mixed_affiliation_id_values_before_dataframe_creation(
+    tmp_path,
+):
+    corrections_path = tmp_path / "corrections.json"
+    corrections_path.write_text(
+        '[{"name": "Bob Two", "affiliations": ["org-corrected", "org-extra"]}]',
+        encoding="utf-8",
+    )
+
+    original_path = settings.corrections_mapping_path
+    settings.corrections_mapping_path = corrections_path
+
+    try:
+        df = pl.DataFrame(
+            {
+                "pure_id": [1, 2],
+                "first_names": ["Alice", "Bob"],
+                "family_names": ["One", "Two"],
+                "found_name": ["Alice One", "Bob Two"],
+                "affiliation_ids_pure": ["org-existing", None],
+            }
+        )
+
+        out = apply_manual_corrections(df)
+
+        assert out.schema["affiliation_ids_pure"] == pl.List(pl.Utf8)
+        assert out["affiliation_ids_pure"].to_list() == [
+            ["org-existing"],
+            ["org-corrected", "org-extra"],
+        ]
+    finally:
+        settings.corrections_mapping_path = original_path

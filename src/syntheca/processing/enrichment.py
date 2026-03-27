@@ -11,6 +11,26 @@ import pathlib
 import polars as pl
 
 from syntheca.config import settings
+from syntheca.utils.polars_frames import robust_from_dicts
+
+
+def _normalize_affiliation_ids_pure(value: object) -> list[str] | None:
+    """Return ``affiliation_ids_pure`` values as ``list[str] | None``."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return [str(item) for item in value if item is not None]
+    return [str(value)]
+
+
+def _normalize_author_row_for_dataframe(row: dict[str, object]) -> dict[str, object]:
+    """Normalize row values that have explicit semantic dataframe contracts."""
+    normalized = dict(row)
+    if "affiliation_ids_pure" in normalized:
+        normalized["affiliation_ids_pure"] = _normalize_affiliation_ids_pure(
+            normalized.get("affiliation_ids_pure")
+        )
+    return normalized
 
 
 def load_faculty_mapping() -> dict[str, str]:
@@ -186,19 +206,11 @@ def apply_manual_corrections(authors_df: pl.DataFrame) -> pl.DataFrame:
         return row
 
     # apply across rows
-    rows = [apply_row(r) for r in df.to_dicts()]
-    out = pl.from_dicts(rows)
-    # Ensure affiliation_ids_pure is a list type; if strings are present, wrap them
-    if "affiliation_ids_pure" in out.columns:
-        # Ensure column values are lists of strings for uniformity
-        vals = out["affiliation_ids_pure"].to_list()
-        new_vals = []
-        for v in vals:
-            if v is None:
-                new_vals.append(None)
-            elif isinstance(v, list):
-                new_vals.append(v)
-            else:
-                new_vals.append([v])
-        out = out.with_columns(pl.Series(new_vals).alias("affiliation_ids_pure"))
+    rows = [_normalize_author_row_for_dataframe(apply_row(r)) for r in df.to_dicts()]
+    schema_overrides = (
+        {"affiliation_ids_pure": pl.List(pl.Utf8)}
+        if any("affiliation_ids_pure" in row for row in rows)
+        else None
+    )
+    out = robust_from_dicts(rows, schema_overrides=schema_overrides)
     return out
