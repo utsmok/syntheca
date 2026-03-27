@@ -167,21 +167,45 @@ class Pipeline:
                     exc,
                 )
                 works = []
-            rows = []
-            for w in works:
-                try:
-                    rows.append(dataclasses.asdict(w))
-                except (TypeError, AttributeError) as exc:
-                    logger.debug("Could not convert Work to dict via dataclasses.asdict: {}", exc)
-                    rows.append(
-                        {
-                            "id": getattr(w, "id", None),
-                            "doi": getattr(w, "doi", None),
-                            "display_name": getattr(w, "display_name", None),
-                            "publication_year": getattr(w, "publication_year", None),
-                        }
-                    )
-            openalex_works_df = robust_from_dicts(rows) if rows else pl.DataFrame()
+            # Reuse incrementally-persisted cache when available; otherwise convert
+            if settings.persist_intermediate:
+                from syntheca.utils.persistence import load_dataframe_parquet
+
+                cached_oa = load_dataframe_parquet("openalex_works")
+                if cached_oa is not None and cached_oa.height:
+                    openalex_works_df = cached_oa
+                else:
+                    rows = []
+                    for w in works:
+                        try:
+                            rows.append(dataclasses.asdict(w))
+                        except (TypeError, AttributeError) as exc:
+                            logger.debug("Could not convert Work to dict: {}", exc)
+                            rows.append(
+                                {
+                                    "id": getattr(w, "id", None),
+                                    "doi": getattr(w, "doi", None),
+                                    "display_name": getattr(w, "display_name", None),
+                                    "publication_year": getattr(w, "publication_year", None),
+                                }
+                            )
+                    openalex_works_df = robust_from_dicts(rows) if rows else pl.DataFrame()
+            else:
+                rows = []
+                for w in works:
+                    try:
+                        rows.append(dataclasses.asdict(w))
+                    except (TypeError, AttributeError) as exc:
+                        logger.debug("Could not convert Work to dict: {}", exc)
+                        rows.append(
+                            {
+                                "id": getattr(w, "id", None),
+                                "doi": getattr(w, "doi", None),
+                                "display_name": getattr(w, "display_name", None),
+                                "publication_year": getattr(w, "publication_year", None),
+                            }
+                        )
+                openalex_works_df = robust_from_dicts(rows) if rows else pl.DataFrame()
 
         oa_clean = (
             cleaning.clean_publications(openalex_works_df)
