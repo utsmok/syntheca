@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from loguru import logger
 
 from syntheca.clients.openaire import OpenAIREClient
@@ -28,7 +30,7 @@ class OpenAIREProvider:
         return {"works", "organizations"}
 
     async def fetch(
-        self, entity: str, **kwargs: object
+        self, entity: str, **kwargs: Any
     ) -> list[CanonicalWork] | list[CanonicalOrganization]:
         """Fetch and normalize records of the given entity type.
 
@@ -42,7 +44,9 @@ class OpenAIREProvider:
 
                 For *organizations*:
                     ``name`` (``str | None``) plus any Graph API filter
-                    params.
+                    params. Use ``precise=True`` and/or ``pid`` /
+                    ``legalName`` / ``legalShortName`` when institution
+                    resolution must avoid broad keyword search semantics.
 
         Returns:
             List of canonical records.
@@ -61,15 +65,17 @@ class OpenAIREProvider:
     # Private fetch helpers
     # ------------------------------------------------------------------
 
-    async def _fetch_works(self, **kwargs: object) -> list[CanonicalWork]:
+    async def _fetch_works(self, **kwargs: Any) -> list[CanonicalWork]:
         doi = kwargs.get("doi")
         title = kwargs.get("title")
         # Forward remaining kwargs as extra filters
-        extra = {k: v for k, v in kwargs.items() if k not in ("doi", "title")}
+        extra: dict[str, Any] = {k: v for k, v in kwargs.items() if k not in ("doi", "title")}
+        doi_text = str(doi) if doi is not None else None
+        title_text = str(title) if title is not None else None
 
         products = await self._client.get_research_products(
-            doi=str(doi) if doi else None,
-            title=str(title) if title else None,
+            doi=doi_text,
+            title=title_text,
             **extra,
         )
 
@@ -81,12 +87,13 @@ class OpenAIREProvider:
                 logger.debug("OpenAIRE canonical work conversion failed: {}", exc)
         return out
 
-    async def _fetch_organizations(self, **kwargs: object) -> list[CanonicalOrganization]:
+    async def _fetch_organizations(self, **kwargs: Any) -> list[CanonicalOrganization]:
         name = kwargs.get("name")
-        extra = {k: v for k, v in kwargs.items() if k != "name"}
+        extra: dict[str, Any] = {k: v for k, v in kwargs.items() if k != "name"}
+        name_text = str(name) if name is not None else None
 
         orgs = await self._client.get_organizations(
-            name=str(name) if name else None,
+            name=name_text,
             **extra,
         )
 

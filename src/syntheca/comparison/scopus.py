@@ -11,6 +11,9 @@ compares them against an internal Syntheca DataFrame to identify:
 Design decisions
 ----------------
 * No Scopus API calls — works purely with local export files.
+* Supported inputs are document-level Scopus exports and SciVal publication
+    detail exports already produced outside the product.
+* Source-list or journal-list workbooks are intentionally out of scope.
 * DOI is the primary matching key.  Matching reuses
   :func:`syntheca.processing.cleaning.normalize_doi`.
 * Column-name matching is case-insensitive to tolerate different Scopus
@@ -19,6 +22,7 @@ Design decisions
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -36,9 +40,9 @@ SCOPUS_COLUMN_ALIASES: dict[str, list[str]] = {
     "doi": ["doi"],
     "title": ["title", "document title"],
     "authors": ["authors", "author names", "author(s)"],
-    "source_title": ["source title", "source"],
+    "source_title": ["source title", "source", "scopus_source_title", "scopus source title"],
     "year": ["year", "publication year"],
-    "document_type": ["document type", "type"],
+    "document_type": ["document type", "type", "publication_type", "publication type"],
     "eid": ["eid"],
     "cited_by": ["cited by", "cited by count", "citation count"],
     "abstract": ["abstract"],
@@ -52,12 +56,17 @@ SCOPUS_COLUMN_ALIASES: dict[str, list[str]] = {
 }
 
 
+def _normalize_header_key(value: str) -> str:
+    """Normalize a raw header or alias into a comparison-friendly key."""
+    return re.sub(r"[^0-9a-z]+", "_", value.strip().lower()).strip("_")
+
+
 def _build_alias_lookup() -> dict[str, str]:
     """Return a mapping of ``alias_lowercase → canonical_name``."""
     lookup: dict[str, str] = {}
     for canonical, aliases in SCOPUS_COLUMN_ALIASES.items():
         for alias in aliases:
-            lookup[alias] = canonical
+            lookup[_normalize_header_key(alias)] = canonical
     return lookup
 
 
@@ -76,6 +85,9 @@ class ScopusExportReader:
     normalized to the canonical lower-case forms defined in
     :data:`SCOPUS_COLUMN_ALIASES`.  DOIs are normalized using the pipeline's
     existing :func:`~syntheca.processing.cleaning.normalize_doi`.
+
+    This reader is deliberately export-first: it accepts local document-export
+    files, not live Scopus API responses and not source-list workbooks.
     """
 
     @staticmethod
@@ -128,12 +140,12 @@ def _normalize_column_names(df: pl.DataFrame) -> pl.DataFrame:
     """
     rename_map: dict[str, str] = {}
     for col in df.columns:
-        lower = col.strip().lower()
-        if lower in _ALIAS_LOOKUP:
-            rename_map[col] = _ALIAS_LOOKUP[lower]
+        normalized = _normalize_header_key(col)
+        if normalized in _ALIAS_LOOKUP:
+            rename_map[col] = _ALIAS_LOOKUP[normalized]
         else:
             # Fall back to a sanitized lower-case version
-            rename_map[col] = lower.replace(" ", "_")
+            rename_map[col] = normalized
 
     return df.rename(rename_map)
 
