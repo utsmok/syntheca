@@ -11,13 +11,13 @@ import dataclasses
 from collections.abc import Iterable
 from urllib.parse import quote
 
+import httpx
 import polars as pl
-from dacite import from_dict
 from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
-from syntheca.config import settings
-from syntheca.models.openalex import Work, production_config
+from syntheca.config import settings, ut_profile
+from syntheca.models.openalex import Work
 from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
 from syntheca.utils.progress import get_next_position
 
@@ -72,7 +72,7 @@ class OpenAlexClient(BaseClient):
                     out: list[Work] = []
                     for r in rows:
                         try:
-                            out.append(from_dict(data_class=Work, data=r, config=production_config))
+                            out.append(Work.from_dict(r))
                         except Exception:
                             # ignore row we can't parse into a dataclass
                             continue
@@ -101,7 +101,7 @@ class OpenAlexClient(BaseClient):
             for it in items:
                 raw_items.append(it)
                 try:
-                    results.append(from_dict(data_class=Work, data=it, config=production_config))
+                    results.append(Work.from_dict(it))
                 except Exception:
                     # Skip items we can't parse; upstream will handle
                     continue
@@ -158,25 +158,13 @@ class OpenAlexClient(BaseClient):
                     out = []
                     for r in df.to_dicts():
                         try:
-                            out.append(from_dict(data_class=Work, data=r, config=production_config))
+                            out.append(Work.from_dict(r))
                         except Exception:
                             continue
                     if out:
                         return out
             except Exception:
                 pass
-        """Automated title autocomplete + detail lookup for OpenAlex works.
-
-        The method uses the OpenAlex autocomplete endpoint and then fetches full
-        work entries in parallel for matching IDs.
-
-        Args:
-            title (str): The title text to send to the `autocomplete` endpoint.
-
-        Returns:
-            list[Work]: A list of `Work` dataclass instances matching the title.
-
-        """
         url = f"{self.BASE}/autocomplete/works?q={quote(title)}"
         resp = await self.request("GET", url)
         data = resp.json()
@@ -192,13 +180,11 @@ class OpenAlexClient(BaseClient):
         if coros:
             responses = await asyncio.gather(*coros, return_exceptions=True)
             for resp in responses:
-                if not resp or isinstance(resp, Exception):
+                if not isinstance(resp, httpx.Response):
                     continue
                 try:
                     work_data = resp.json()
-                    results.append(
-                        from_dict(data_class=Work, data=work_data, config=production_config)
-                    )
+                    results.append(Work.from_dict(work_data))
                 except Exception:
                     continue
                 finally:
@@ -241,7 +227,7 @@ class OpenAlexClient(BaseClient):
 
         """
         cleaned = []
-        utwente_oa_id = "https://openalex.org/I94624287"
+        utwente_oa_id = ut_profile.openalex_institution_id
         for w in works:
             wclean = {}
             oa = w.get("open_access", {}) or {}

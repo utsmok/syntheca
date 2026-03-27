@@ -93,6 +93,7 @@ class OpenAIREClient(BaseClient):
         self,
         name: str | None = None,
         *,
+        precise: bool = False,
         page_size: int = _DEFAULT_PAGE_SIZE,
         **filters: Any,
     ) -> list[OpenAIREOrganization]:
@@ -100,14 +101,21 @@ class OpenAIREClient(BaseClient):
 
         Args:
             name: Legal-name or keyword search string.
+            precise: When ``True``, prefer exact-ish filters such as
+                ``legalName`` instead of the broad ``search`` parameter.
             page_size: Results per page (max 100).
-            **filters: Extra query parameters forwarded verbatim.
+            **filters: Extra query parameters forwarded verbatim. Prefer
+                ``legalName``, ``legalShortName``, or ``pid`` when precise
+                institution resolution is required.
 
         Returns:
             Parsed :class:`OpenAIREOrganization` instances.
         """
         params: dict[str, Any] = {"pageSize": min(page_size, 100)}
-        if name:
+        has_precise_filter = any(filters.get(key) for key in ("pid", "legalName", "legalShortName"))
+        if name and (precise or has_precise_filter):
+            params["legalName"] = name
+        elif name:
             params["search"] = name
         params.update(filters)
 

@@ -239,6 +239,30 @@ class PureOAIClient(BaseClient):
             )
         return out
 
+    def _parse_orgunit_identifiers(self, identifier_raw: Any) -> list[dict[str, str | None]]:
+        """Parse one or more ``cerif:Identifier`` elements into structured pairs.
+
+        Pure CERIF org-unit records may expose a single identifier or repeated
+        identifiers. This helper preserves each identifier with its associated
+        ``type`` attribute so downstream consumers can distinguish scalar
+        convenience fields from the full identifier list.
+
+        Args:
+            identifier_raw (Any): Raw ``cerif:Identifier`` value from xmltodict.
+
+        Returns:
+            list[dict[str, str | None]]: Structured ``value`` / ``type`` pairs.
+
+        """
+        identifiers: list[dict[str, str | None]] = []
+        for item in self._ensure_list(identifier_raw):
+            value = self._get_text(item)
+            identifier_type = item.get("@type") if isinstance(item, dict) else None
+            if value is None and identifier_type is None:
+                continue
+            identifiers.append({"value": value, "type": identifier_type})
+        return identifiers
+
     def _parse_file_locations(self, file_locations: dict | None) -> list[dict] | None:
         """Parse the `cerif:FileLocations` node into a list of medium dicts.
 
@@ -349,16 +373,18 @@ class PureOAIClient(BaseClient):
             if not person_data:
                 continue
             family_names, first_names = self._parse_person_name(person_data.get("cerif:PersonName"))
-            affiliation_data = self._safe_get(item, ["cerif:Affiliation", "cerif:OrgUnit"]) or {}
+            affiliations = self._parse_person_affiliations(
+                self._ensure_list(item.get("cerif:Affiliation"))
+            )
+            primary_affiliation = affiliations[0] if affiliations else {}
             parsed_list.append(
                 {
                     "person_id": self._safe_get(person_data, ["@id"]),
                     "family_names": family_names,
                     "first_names": first_names,
-                    "affiliation_id": self._safe_get(affiliation_data, ["@id"]),
-                    "affiliation_name": self._get_text(
-                        self._safe_get(affiliation_data, ["cerif:Name"])
-                    ),
+                    "affiliation_id": primary_affiliation.get("affiliation_id"),
+                    "affiliation_name": primary_affiliation.get("affiliation_name"),
+                    "affiliations": affiliations,
                 }
             )
         return parsed_list
@@ -379,12 +405,9 @@ class PureOAIClient(BaseClient):
         elif isinstance(org, dict) and "openaire_cris:orgunit" in org:
             org = org.get("openaire_cris:orgunit") or org
 
-        # Parse cerif:Identifier which has @type attribute and #text value
-        identifier_raw = org.get("cerif:Identifier")
-        identifier = self._get_text(identifier_raw)
-        identifier_type = None
-        if isinstance(identifier_raw, dict):
-            identifier_type = identifier_raw.get("@type")
+        # Parse cerif:Identifier which may be a single node or repeated nodes.
+        identifiers = self._parse_orgunit_identifiers(org.get("cerif:Identifier"))
+        primary_identifier = identifiers[0] if identifiers else {}
 
         # Parse cerif:PartOf -> cerif:OrgUnit -> @id
         part_of = self._safe_get(org, ["cerif:PartOf", "cerif:OrgUnit"]) or {}
@@ -394,8 +417,9 @@ class PureOAIClient(BaseClient):
         result = {
             "id": self._safe_get(org, ["@id"]),
             "type": self._get_text(org.get("cerif:Type")),
-            "identifier": identifier,
-            "identifier_type": identifier_type,
+            "identifier": primary_identifier.get("value"),
+            "identifier_type": primary_identifier.get("type"),
+            "identifiers": identifiers,
             "name": self._get_text(org.get("cerif:Name")),
             "acronym": self._get_text(org.get("cerif:Acronym")),
             "part_of_org_id": part_of_org_id,
