@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _MAPPINGS_DIR = Path(__file__).parent / "mappings"
 
@@ -37,7 +36,7 @@ class UTProfile(BaseSettings):
     publisher_mapping_path: Path = _MAPPINGS_DIR / "publishers.json"
     corrections_mapping_path: Path = _MAPPINGS_DIR / "corrections.json"
 
-    model_config = ConfigDict(env_prefix="SYNTHECA_UT_")
+    model_config = SettingsConfigDict(env_prefix="SYNTHECA_UT_")
 
 
 ut_profile = UTProfile()

@@ -9,8 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -41,7 +40,7 @@ class Settings(BaseSettings):
     # `save_dataframe_parquet`) before attempting network requests.
     use_cache_for_retrieval: bool = False
 
-    model_config = ConfigDict(env_prefix="SYNTHECA_")
+    model_config = SettingsConfigDict(env_prefix="SYNTHECA_")
 
 
 settings = Settings()
