@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
+from syntheca.clients.openalex import OpenAlexClient
+from syntheca.clients.pure_oai import PureOAIClient
+from syntheca.clients.ut_people import UTPeopleClient
 from syntheca.config.source_precedence import Source
 from syntheca.models.canonical import CanonicalOrganization, CanonicalPerson, CanonicalWork
 from syntheca.providers import DataProvider
@@ -87,15 +92,15 @@ class TestProtocolConformance:
     """Verify that each concrete provider satisfies the DataProvider protocol."""
 
     def test_pure_provider_is_data_provider(self):
-        provider = PureProvider(client=_MockPureClient())
+        provider = PureProvider(client=cast(PureOAIClient, _MockPureClient()))
         assert isinstance(provider, DataProvider)
 
     def test_openalex_provider_is_data_provider(self):
-        provider = OpenAlexProvider(client=_MockOpenAlexClient())
+        provider = OpenAlexProvider(client=cast(OpenAlexClient, _MockOpenAlexClient()))
         assert isinstance(provider, DataProvider)
 
     def test_ut_people_provider_is_data_provider(self):
-        provider = UTPeopleProvider(client=_MockUTPeopleClient())
+        provider = UTPeopleProvider(client=cast(UTPeopleClient, _MockUTPeopleClient()))
         assert isinstance(provider, DataProvider)
 
     def test_stub_provider_is_data_provider(self):
@@ -110,27 +115,27 @@ class TestProtocolConformance:
 
 class TestProviderProperties:
     def test_pure_source(self):
-        p = PureProvider(client=_MockPureClient())
+        p = PureProvider(client=cast(PureOAIClient, _MockPureClient()))
         assert p.source == Source.PURE
 
     def test_pure_capabilities(self):
-        p = PureProvider(client=_MockPureClient())
+        p = PureProvider(client=cast(PureOAIClient, _MockPureClient()))
         assert p.capabilities == {"works", "persons", "organizations"}
 
     def test_openalex_source(self):
-        p = OpenAlexProvider(client=_MockOpenAlexClient())
+        p = OpenAlexProvider(client=cast(OpenAlexClient, _MockOpenAlexClient()))
         assert p.source == Source.OPENALEX
 
     def test_openalex_capabilities(self):
-        p = OpenAlexProvider(client=_MockOpenAlexClient())
+        p = OpenAlexProvider(client=cast(OpenAlexClient, _MockOpenAlexClient()))
         assert p.capabilities == {"works"}
 
     def test_ut_people_source(self):
-        p = UTPeopleProvider(client=_MockUTPeopleClient())
+        p = UTPeopleProvider(client=cast(UTPeopleClient, _MockUTPeopleClient()))
         assert p.source == Source.UT_PEOPLE
 
     def test_ut_people_capabilities(self):
-        p = UTPeopleProvider(client=_MockUTPeopleClient())
+        p = UTPeopleProvider(client=cast(UTPeopleClient, _MockUTPeopleClient()))
         assert p.capabilities == {"persons"}
 
 
@@ -147,7 +152,7 @@ class TestPureProviderFetch:
                 {"id": "p1", "title": "Test Paper", "doi": "10.1234/test"},
             ]
         }
-        provider = PureProvider(client=_MockPureClient(records))
+        provider = PureProvider(client=cast(PureOAIClient, _MockPureClient(records)))
         result = await provider.fetch("works")
         assert len(result) == 1
         assert isinstance(result[0], CanonicalWork)
@@ -160,7 +165,7 @@ class TestPureProviderFetch:
                 {"id": "per1", "first_names": "Alice", "family_names": "Smith"},
             ]
         }
-        provider = PureProvider(client=_MockPureClient(records))
+        provider = PureProvider(client=cast(PureOAIClient, _MockPureClient(records)))
         result = await provider.fetch("persons")
         assert len(result) == 1
         assert isinstance(result[0], CanonicalPerson)
@@ -173,7 +178,7 @@ class TestPureProviderFetch:
                 {"id": "org1", "name": "Faculty of Science"},
             ]
         }
-        provider = PureProvider(client=_MockPureClient(records))
+        provider = PureProvider(client=cast(PureOAIClient, _MockPureClient(records)))
         result = await provider.fetch("organizations")
         assert len(result) == 1
         assert isinstance(result[0], CanonicalOrganization)
@@ -181,13 +186,13 @@ class TestPureProviderFetch:
 
     @pytest.mark.asyncio
     async def test_fetch_unsupported_entity_raises(self):
-        provider = PureProvider(client=_MockPureClient())
+        provider = PureProvider(client=cast(PureOAIClient, _MockPureClient()))
         with pytest.raises(ValueError, match="does not support"):
             await provider.fetch("funding")
 
     @pytest.mark.asyncio
     async def test_fetch_empty_collection(self):
-        provider = PureProvider(client=_MockPureClient())
+        provider = PureProvider(client=cast(PureOAIClient, _MockPureClient()))
         result = await provider.fetch("works")
         assert result == []
 
@@ -203,20 +208,20 @@ class TestOpenAlexProviderFetch:
                 "publication_year": 2025,
             }
         ]
-        provider = OpenAlexProvider(client=_MockOpenAlexClient(raw_works))
+        provider = OpenAlexProvider(client=cast(OpenAlexClient, _MockOpenAlexClient(raw_works)))
         result = await provider.fetch("works", ids=["10.1234/oa1"])
         assert len(result) == 1
         assert isinstance(result[0], CanonicalWork)
 
     @pytest.mark.asyncio
     async def test_fetch_with_no_ids_returns_empty(self):
-        provider = OpenAlexProvider(client=_MockOpenAlexClient())
+        provider = OpenAlexProvider(client=cast(OpenAlexClient, _MockOpenAlexClient()))
         result = await provider.fetch("works")
         assert result == []
 
     @pytest.mark.asyncio
     async def test_fetch_unsupported_entity_raises(self):
-        provider = OpenAlexProvider(client=_MockOpenAlexClient())
+        provider = OpenAlexProvider(client=cast(OpenAlexClient, _MockOpenAlexClient()))
         with pytest.raises(ValueError, match="does not support"):
             await provider.fetch("persons")
 
@@ -229,7 +234,7 @@ class TestUTPeopleProviderFetch:
                 {"found_name": "Alice Smith", "people_page_url": "https://people.utwente.nl/alice"}
             ]
         }
-        provider = UTPeopleProvider(client=_MockUTPeopleClient(results))
+        provider = UTPeopleProvider(client=cast(UTPeopleClient, _MockUTPeopleClient(results)))
         result = await provider.fetch("persons", names=["Alice Smith"])
         assert len(result) == 1
         assert isinstance(result[0], CanonicalPerson)
@@ -237,13 +242,13 @@ class TestUTPeopleProviderFetch:
 
     @pytest.mark.asyncio
     async def test_fetch_with_no_names_returns_empty(self):
-        provider = UTPeopleProvider(client=_MockUTPeopleClient())
+        provider = UTPeopleProvider(client=cast(UTPeopleClient, _MockUTPeopleClient()))
         result = await provider.fetch("persons")
         assert result == []
 
     @pytest.mark.asyncio
     async def test_fetch_unsupported_entity_raises(self):
-        provider = UTPeopleProvider(client=_MockUTPeopleClient())
+        provider = UTPeopleProvider(client=cast(UTPeopleClient, _MockUTPeopleClient()))
         with pytest.raises(ValueError, match="does not support"):
             await provider.fetch("works")
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+from typing import Any, cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -445,7 +446,7 @@ class TestPolicyCitationInvestigator:
     @pytest.mark.asyncio
     async def test_investigate_basic(self, citing_works: list[dict]):
         client = OpenAlexClient()
-        client.get_citing_works = AsyncMock(return_value=citing_works)
+        cast(Any, client).get_citing_works = AsyncMock(return_value=citing_works)
 
         classifier = PolicyClassifier()
         investigator = PolicyCitationInvestigator(client, classifier)
@@ -459,7 +460,7 @@ class TestPolicyCitationInvestigator:
     @pytest.mark.asyncio
     async def test_investigate_multiple_ids(self):
         client = OpenAlexClient()
-        client.get_citing_works = AsyncMock(return_value=[])
+        cast(Any, client).get_citing_works = AsyncMock(return_value=[])
 
         classifier = PolicyClassifier()
         investigator = PolicyCitationInvestigator(client, classifier)
@@ -475,10 +476,10 @@ class TestPolicyCitationInvestigator:
         from syntheca.clients.openaire import OpenAIREClient
 
         oa_client = OpenAlexClient()
-        oa_client.get_citing_works = AsyncMock(return_value=citing_works)
+        cast(Any, oa_client).get_citing_works = AsyncMock(return_value=citing_works)
 
         openaire_client = OpenAIREClient()
-        openaire_client.get_research_products = AsyncMock(return_value=["dummy"])
+        cast(Any, openaire_client).get_research_products = AsyncMock(return_value=["dummy"])
 
         classifier = PolicyClassifier()
         investigator = PolicyCitationInvestigator(

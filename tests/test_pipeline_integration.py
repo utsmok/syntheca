@@ -71,7 +71,7 @@ async def test_pipeline_integration_mock_end_to_end(tmp_path: pathlib.Path):
     settings.persist_intermediate = True
 
     # Provide a minimal orgs DataFrame for resolving hierarchy
-    orgs = pl.DataFrame(
+    org_units = pl.DataFrame(
         {
             "internal_repository_id": ["org1"],
             "name": ["Faculty of Science and Technology"],
@@ -95,7 +95,7 @@ async def test_pipeline_integration_mock_end_to_end(tmp_path: pathlib.Path):
         pure_publications_df=None,
         openalex_works_df=None,
         authors_df=authors_df,
-        orgunits_df=orgs,
+        org_units_df=org_units,
         output_dir=tmp_path,
         pure_client=cast(PureOAIClient, FakePureClient()),
         openalex_client=cast(OpenAlexClient, FakeOpenAlexClient()),
@@ -107,6 +107,12 @@ async def test_pipeline_integration_mock_end_to_end(tmp_path: pathlib.Path):
     # Expect the pipeline to return at least one row and some publication identifier
     assert merged.height > 0
     assert any(col in merged.columns for col in ("doi", "display_name", "title"))
+    assert (tmp_path / "pure_publications_clean.parquet").exists()
+    assert (tmp_path / "pure_persons.parquet").exists()
+    assert (tmp_path / "pure_orgunits.parquet").exists()
+    assert (tmp_path / "openalex_works_clean.parquet").exists()
+    assert (tmp_path / "authors_enriched.parquet").exists()
+    assert (tmp_path / "merged.reconciled.parquet").exists()
 
     # cleanup
     settings.cache_dir = old_cache

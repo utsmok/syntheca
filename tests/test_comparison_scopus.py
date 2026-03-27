@@ -146,6 +146,32 @@ class TestScopusExportReader:
         assert len(df) == 1
         assert "title" in df.columns
 
+    @pytest.mark.parametrize(
+        ("document_type_header", "source_title_header"),
+        [
+            ("publication_type", "scopus_source_title"),
+            ("Publication type", "Scopus Source title"),
+        ],
+    )
+    def test_scival_aliases_normalize_to_canonical_columns(
+        self,
+        tmp_path: pathlib.Path,
+        document_type_header: str,
+        source_title_header: str,
+    ):
+        csv_path = tmp_path / "scival_export.csv"
+        csv_path.write_text(
+            f"DOI,Title,{document_type_header},{source_title_header},Year\n"
+            "10.1234/scival.001,SciVal Export Row,Review,Journal of Tests,2025\n"
+        )
+
+        df = ScopusExportReader.read_export(csv_path)
+
+        assert "document_type" in df.columns
+        assert "source_title" in df.columns
+        assert df["document_type"].to_list() == ["Review"]
+        assert df["source_title"].to_list() == ["Journal of Tests"]
+
 
 # ===================================================================
 # ScopusComparison
@@ -195,6 +221,30 @@ class TestScopusComparison:
         mismatch_fields = result.mismatch_details["field"].to_list()
         assert "title_mismatch" in mismatch_fields
         assert "document_type_mismatch" in mismatch_fields
+
+    def test_scival_publication_type_alias_participates_in_mismatch_detection(
+        self,
+        tmp_path: pathlib.Path,
+    ):
+        csv_path = tmp_path / "scival_mismatch.csv"
+        csv_path.write_text(
+            "DOI,Title,Publication type,Scopus Source title,Year\n"
+            "10.1234/scival.mismatch.001,Shared Title,Conference Paper,Conference Proceedings,2025\n"
+        )
+        scival_df = ScopusExportReader.read_export(csv_path)
+        internal_df = pl.DataFrame(
+            {
+                "doi": ["10.1234/scival.mismatch.001"],
+                "title": ["Shared Title"],
+                "type": ["article"],
+                "publication_year": [2025],
+            }
+        )
+
+        result = ScopusComparison.compare(scival_df, internal_df)
+
+        assert result.summary["matched"] == 1
+        assert "document_type_mismatch" in result.mismatch_details["field"].to_list()
 
     def test_empty_scopus(self, internal_df: pl.DataFrame):
         empty = pl.DataFrame(schema={"doi": pl.Utf8, "title": pl.Utf8})

@@ -37,6 +37,12 @@ def _parse_oai_records(xml_text: str) -> list[dict]:
     return [r["metadata"] for r in records]
 
 
+def _parse_getrecord_metadata(xml_text: str) -> dict:
+    """Return the raw metadata dict from an OAI-PMH ``GetRecord`` fixture."""
+    parsed = xmltodict.parse(xml_text)
+    return parsed["OAI-PMH"]["GetRecord"]["record"]["metadata"]
+
+
 # ---------------------------------------------------------------------------
 # Publication fixture tests
 # ---------------------------------------------------------------------------
@@ -285,6 +291,52 @@ def test_cerif_namespace_1_2_orgunit_parsing():
     assert result["identifier"] == "https://ror.org/example"
     assert result["identifier_type"] == "ROR"
     assert result["name"] == "Test Institute"
+
+
+def test_saved_live_person_fixture_uses_cerif_1_2_and_parses() -> None:
+    client = PureOAIClient()
+    xml_text = _load_fixture("person_getrecord_live.xml")
+
+    assert "https://www.openaire.eu/cerif-profile/1.2/" in xml_text
+
+    meta = _parse_getrecord_metadata(xml_text)
+    result = client._parse_person(meta.get("cerif:Person", meta))
+
+    assert result["id"] == "openaire_cris_persons/e44967b7-fe0e-494d-ae2a-3bdf77b72ba5"
+    assert result["family_names"] == "Garcia Alba"
+    assert result["first_names"] == "Laura"
+
+
+def test_saved_live_publication_fixture_preserves_repeated_affiliations() -> None:
+    client = PureOAIClient()
+    xml_text = _load_fixture("publication_getrecord_live.xml")
+
+    assert "https://www.openaire.eu/cerif-profile/1.2/" in xml_text
+
+    meta = _parse_getrecord_metadata(xml_text)
+    result = client._parse_publication(meta.get("cerif:Publication", meta))
+
+    authors = result["authors"]
+    assert result["type"].endswith("c_93fc")
+    assert authors[0]["affiliations"][1]["affiliation_id"] == "91869f52-72ee-4e39-a933-458a3dc67260"
+    assert authors[1]["affiliations"][1]["affiliation_name"] == (
+        "Center for Healthcare Operations Improvement and Research"
+    )
+
+
+def test_saved_live_orgunit_fixture_preserves_identifier_type_pairs() -> None:
+    client = PureOAIClient()
+    xml_text = _load_fixture("orgunit_getrecord_live.xml")
+
+    assert "https://www.openaire.eu/cerif-profile/1.2/" in xml_text
+
+    meta = _parse_getrecord_metadata(xml_text)
+    result = client._parse_orgunit(meta.get("cerif:OrgUnit", meta))
+
+    assert result["id"] == "openaire_cris_orgunits/491145c6-1c9b-4338-aedd-98315c166d7e"
+    assert result["identifier_type"] == "Scopus affiliation ID"
+    assert {entry["type"] for entry in result["identifiers"]} == {"Scopus affiliation ID"}
+    assert result["identifiers"][3]["value"] == "112454813"
 
 
 # ---------------------------------------------------------------------------
