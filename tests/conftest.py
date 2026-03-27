@@ -8,6 +8,8 @@ import pathlib
 import polars as pl
 import pytest
 
+from syntheca.config import settings
+
 # ---------------------------------------------------------------------------
 # Directories
 # ---------------------------------------------------------------------------
@@ -118,3 +120,11 @@ def mock_client_config() -> dict:
         "headers": {"User-Agent": "syntheca-test/0.1"},
         "timeout": 5,
     }
+
+
+@pytest.fixture(autouse=True)
+def isolate_cache_dir(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> pathlib.Path:
+    """Isolate on-disk cache artifacts per test to avoid cross-test leakage."""
+    cache_dir = tmp_path / ".cache"
+    monkeypatch.setattr(settings, "cache_dir", cache_dir)
+    return cache_dir
