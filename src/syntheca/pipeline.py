@@ -14,12 +14,18 @@ import polars as pl
 from loguru import logger
 from tqdm import tqdm
 
+from syntheca.clients.openaire import OpenAIREClient
 from syntheca.clients.openalex import OpenAlexClient
 from syntheca.clients.pure_oai import PureOAIClient
 from syntheca.clients.ut_people import UTPeopleClient
 from syntheca.config import settings
+from syntheca.config.output_contract import ensure_publication_contract
+from syntheca.config.source_precedence import Source
+from syntheca.models.canonical import CanonicalWork, canonicals_to_polars
 from syntheca.processing import cleaning, enrichment, merging
 from syntheca.processing.organizations import map_author_affiliations, resolve_org_hierarchy
+from syntheca.processing.reconciliation import reconcile_works
+from syntheca.providers.openaire_provider import OpenAIREProvider
 from syntheca.reporting import export
 from syntheca.utils.progress import get_next_position
 
@@ -51,11 +57,14 @@ class Pipeline:
         pure_publications_df: pl.DataFrame | None = None,
         openalex_works_df: pl.DataFrame | None = None,
         authors_df: pl.DataFrame | None = None,
-        orgunits_df: pl.DataFrame | None = None,
+        org_units_df: pl.DataFrame | None = None,
         output_dir: pathlib.Path | str | None = None,
         *,
+        orgunits_df: pl.DataFrame | None = None,
+        allow_cached_orgunits_fallback: bool = False,
         pure_client: PureOAIClient | None = None,
         openalex_client: OpenAlexClient | None = None,
+        openaire_client: OpenAIREClient | None = None,
         ut_people_client: UTPeopleClient | None = None,
         openalex_ids: list[str] | None = None,
         people_search_names: list[str] | None = None,
@@ -75,14 +84,23 @@ class Pipeline:
             pure_publications_df (pl.DataFrame | None): Polars DataFrame of Pure OAI publications.
             openalex_works_df (pl.DataFrame | None): Polars DataFrame for OpenAlex works.
             authors_df (pl.DataFrame | None): Polars DataFrame of author/person records.
-            orgunits_df (pl.DataFrame | None): Polars DataFrame of organizational units.
+            org_units_df (pl.DataFrame | None): Polars DataFrame of organizational units.
                 When provided, used for resolving author affiliation hierarchies.
-                When ``None``, the pipeline will attempt to load a cached
-                ``openaire_cris_orgunits`` parquet as a fallback.
             output_dir (pathlib.Path | str | None): Optional directory path to write
                 parquet and Excel exports.
+            orgunits_df (pl.DataFrame | None): Deprecated alias for ``org_units_df``.
+                Use only for backward compatibility during the audit-remediation
+                transition.
+            allow_cached_orgunits_fallback (bool): When ``True``, explicitly allow
+                loading cached ``openaire_cris_orgunits`` data if no org-unit
+                DataFrame was supplied. The default ``False`` keeps org-unit
+                behavior fully explicit.
             pure_client (PureOAIClient | None): Optional Pure OAI client to fetch data.
             openalex_client (OpenAlexClient | None): Optional OpenAlex client to fetch works.
+            openaire_client (OpenAIREClient | None): Optional OpenAIRE Graph client
+                used only for bounded runtime reconciliation supplements when
+                unresolved merged fields would otherwise bypass later-wave
+                correctness logic.
             ut_people_client (UTPeopleClient | None): Optional UT People client to search/enrich people.
             openalex_ids (list[str] | None): Optional list of OpenAlex/DOI IDs to fetch.
             people_search_names (list[str] | None): Optional list of person search names.
@@ -101,6 +119,17 @@ class Pipeline:
                 "At least one of pure_publications_df, openalex_works_df, "
                 "pure_client, or openalex_client must be provided"
             )
+
+        if org_units_df is not None and orgunits_df is not None:
+            raise ValueError(
+                "Use only one org-unit input parameter: prefer org_units_df over orgunits_df"
+            )
+        if org_units_df is None and orgunits_df is not None:
+            logger.debug("Using deprecated Pipeline.run orgunits_df alias; prefer org_units_df")
+            org_units_df = orgunits_df
+
+        input_persons_df = authors_df
+        input_org_units_df = org_units_df
 
         # Clean publications
         if pure_publications_df is None and pure_client is not None:
@@ -165,40 +194,19 @@ class Pipeline:
         # Convert raw records to canonical form *alongside* the existing
         # DataFrames.  This does not replace downstream merge logic yet.
         # -----------------------------------------------------------------
-        canonical_works: list = []
-        try:
-            from syntheca.models.adapters import (
-                openalex_work_to_canonical,
-                pure_publication_to_canonical,
-            )
-            from syntheca.models.canonical import canonicals_to_polars
+        pure_canonical_works = _canonicalize_pure_rows(pubs_clean)
+        openalex_canonical_works = _canonicalize_openalex_rows(oa_clean)
+        canonical_works = [*pure_canonical_works, *openalex_canonical_works]
+        if canonical_works:
+            logger.info("Canonical normalization produced {} work records", len(canonical_works))
+            if settings.persist_intermediate:
+                try:
+                    from syntheca.utils.persistence import save_dataframe_parquet
 
-            if pubs_clean is not None and pubs_clean.height:
-                for row in pubs_clean.to_dicts():
-                    try:
-                        canonical_works.append(pure_publication_to_canonical(row))
-                    except Exception as exc:
-                        logger.debug("Canonical conversion failed for Pure pub: {}", exc)
-            if oa_clean is not None and oa_clean.height:
-                for row in oa_clean.to_dicts():
-                    try:
-                        canonical_works.append(openalex_work_to_canonical(row))
-                    except Exception as exc:
-                        logger.debug("Canonical conversion failed for OA work: {}", exc)
-            if canonical_works:
-                logger.info(
-                    "Canonical normalization produced {} work records", len(canonical_works)
-                )
-                if settings.persist_intermediate:
-                    try:
-                        from syntheca.utils.persistence import save_dataframe_parquet
-
-                        canonical_df = canonicals_to_polars(canonical_works)
-                        save_dataframe_parquet(canonical_df, "canonical_works")
-                    except Exception as exc:
-                        logger.warning("Failed to persist canonical_works: {}", exc)
-        except Exception as exc:
-            logger.warning("Canonical normalization step failed: {}", exc)
+                    canonical_df = canonicals_to_polars(canonical_works)
+                    save_dataframe_parquet(canonical_df, "canonical_works")
+                except Exception as exc:
+                    logger.warning("Failed to persist canonical_works: {}", exc)
 
         # Enrich authors
         # Build or append people_search_names by extracting names from `authors_df` when available.
@@ -330,9 +338,9 @@ class Pipeline:
             _authors_enriched = enrichment.apply_manual_corrections(_authors_enriched)
 
             # Resolve org hierarchy and map affiliations.
-            # Use explicitly provided orgunits_df; fall back to cached parquet.
-            _orgs_df = orgunits_df
-            if _orgs_df is None:
+            # Only use cached org-units when explicitly requested.
+            _orgs_df = org_units_df
+            if _orgs_df is None and allow_cached_orgunits_fallback:
                 try:
                     from syntheca.utils.persistence import load_dataframe_parquet
 
@@ -347,6 +355,11 @@ class Pipeline:
                 except Exception as exc:
                     logger.warning("Failed to load cached orgunits: {}", exc)
                     _orgs_df = pl.DataFrame()
+            elif _orgs_df is None:
+                logger.debug(
+                    "No org_units_df supplied and cached org-unit fallback is disabled; skipping org mapping"
+                )
+                _orgs_df = pl.DataFrame()
 
             processed_orgs = (
                 resolve_org_hierarchy(_orgs_df)
@@ -398,16 +411,38 @@ class Pipeline:
             merged = merging.merge_datasets(merged_with_authors, oa_clean)
 
         # Deduplicate final set
-        merged_final = merging.deduplicate(merged)
+        merged_final = ensure_publication_contract(merging.deduplicate(merged))
+
+        reconciled_transition = await _build_reconciled_transition_output(
+            legacy_merged=merged_final,
+            pure_works=pure_canonical_works,
+            openalex_works=openalex_canonical_works,
+            openaire_client=openaire_client,
+        )
+        if reconciled_transition is not None and reconciled_transition.height:
+            reconciled_transition = ensure_publication_contract(reconciled_transition)
 
         # Optionally write outputs
         if output_dir is not None:
             outdir = pathlib.Path(output_dir)
             outdir.mkdir(parents=True, exist_ok=True)
+            _write_parity_support_artifacts(
+                output_dir=outdir,
+                pure_publications_clean=pubs_clean,
+                pure_persons=input_persons_df,
+                pure_org_units=input_org_units_df,
+                openalex_works_clean=oa_clean,
+                authors_enriched=_authors_enriched,
+            )
             parquet_path = outdir / "merged.parquet"
             xlsx_path = outdir / "merged.xlsx"
             export.write_parquet(merged_final, parquet_path)
             export.write_formatted_excel(merged_final, xlsx_path)
+            if reconciled_transition is not None and reconciled_transition.height:
+                reconciled_parquet = outdir / "merged.reconciled.parquet"
+                reconciled_xlsx = outdir / "merged.reconciled.xlsx"
+                export.write_parquet(reconciled_transition, reconciled_parquet)
+                export.write_formatted_excel(reconciled_transition, reconciled_xlsx)
 
         return merged_final
 
@@ -442,3 +477,256 @@ def _merge_ut_people_results(authors_df: pl.DataFrame, pp_df: pl.DataFrame) -> p
         pl.coalesce(["org_details_pp", "_pp_org"]).alias("org_details_pp")
     ).drop("_pp_org")
     return merged
+
+
+def _canonicalize_pure_rows(df: pl.DataFrame | None) -> list[CanonicalWork]:
+    """Convert cleaned Pure publication rows to canonical work records."""
+    if df is None or not df.height:
+        return []
+
+    from syntheca.models.adapters import pure_publication_to_canonical
+
+    works: list[CanonicalWork] = []
+    for row in df.to_dicts():
+        try:
+            works.append(pure_publication_to_canonical(row))
+        except Exception as exc:
+            logger.debug("Canonical conversion failed for Pure pub: {}", exc)
+    return works
+
+
+def _canonicalize_openalex_rows(df: pl.DataFrame | None) -> list[CanonicalWork]:
+    """Convert cleaned OpenAlex rows to canonical work records."""
+    if df is None or not df.height:
+        return []
+
+    from syntheca.models.adapters import openalex_work_to_canonical
+
+    works: list[CanonicalWork] = []
+    for row in df.to_dicts():
+        try:
+            works.append(openalex_work_to_canonical(row))
+        except Exception as exc:
+            logger.debug("Canonical conversion failed for OA work: {}", exc)
+    return works
+
+
+def _normalize_reconciliation_value(value: object) -> str | None:
+    """Normalize DOI/title values for runtime reconciliation and overlay joins."""
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    if not text:
+        return None
+    for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+        if text.startswith(prefix):
+            text = text[len(prefix) :].strip()
+            break
+    return text or None
+
+
+def _reconciliation_key_expr(*, doi_col: str = "doi", title_col: str = "title") -> pl.Expr:
+    """Build a join key expression that prefers normalized DOI and falls back to title."""
+    doi_expr = (
+        pl.when(pl.col(doi_col).is_not_null())
+        .then(
+            pl.col(doi_col)
+            .cast(pl.Utf8)
+            .str.to_lowercase()
+            .str.replace("https://doi.org/", "")
+            .str.replace("http://doi.org/", "")
+            .str.replace("doi:", "")
+            .str.strip_chars()
+        )
+        .otherwise(None)
+    )
+    title_expr = (
+        pl.when(pl.col(title_col).is_not_null())
+        .then(pl.col(title_col).cast(pl.Utf8).str.to_lowercase().str.strip_chars())
+        .otherwise(None)
+    )
+    return pl.coalesce([doi_expr, title_expr])
+
+
+async def _fetch_openaire_supplemental_works(
+    pure_works: list[CanonicalWork],
+    openalex_works: list[CanonicalWork],
+    openaire_client: OpenAIREClient | None,
+) -> list[CanonicalWork]:
+    """Fetch bounded OpenAIRE supplements for Pure DOI records not resolved by OpenAlex."""
+    if openaire_client is None or not pure_works:
+        return []
+
+    openalex_dois = {
+        normalized
+        for work in openalex_works
+        if (normalized := _normalize_reconciliation_value(work.doi)) is not None
+    }
+
+    provider = OpenAIREProvider(openaire_client)
+    supplements: list[CanonicalWork] = []
+    seen_dois: set[str] = set()
+
+    for work in pure_works:
+        doi = _normalize_reconciliation_value(work.doi)
+        if doi is None or doi in openalex_dois or doi in seen_dois:
+            continue
+        seen_dois.add(doi)
+        try:
+            fetched = await provider.fetch("works", doi=doi)
+        except Exception as exc:
+            logger.debug("OpenAIRE supplement fetch failed for DOI {}: {}", doi, exc)
+            continue
+
+        exact_matches = [
+            candidate
+            for candidate in fetched
+            if isinstance(candidate, CanonicalWork)
+            and _normalize_reconciliation_value(candidate.doi) == doi
+        ]
+        if exact_matches:
+            supplements.append(exact_matches[0])
+
+    if supplements:
+        logger.info(
+            "Runtime reconciliation fetched {} bounded OpenAIRE work supplements",
+            len(supplements),
+        )
+    return supplements
+
+
+def _canonical_works_to_overlay_df(works: list[CanonicalWork]) -> pl.DataFrame:
+    """Convert reconciled canonical works to a flat overlay DataFrame."""
+    rows: list[dict[str, object]] = []
+    for work in works:
+        sources = sorted({assertion.source.value for assertion in work.provenance})
+        rows.append(
+            {
+                "doi": work.doi,
+                "title": work.title,
+                "internal_repository_id": work.source_ids.get("pure"),
+                "id": work.source_ids.get("openalex"),
+                "publication_year": work.publication_year,
+                "publication_date": work.publication_date,
+                "type": work.type,
+                "language": work.language,
+                "is_oa": work.is_oa,
+                "oa_color": work.oa_color,
+                "cited_by_count": work.cited_by_count,
+                "publisher": work.publisher,
+                "primary_host_name": work.primary_host_name,
+                "ut_is_corresponding": work.ut_is_corresponding,
+                "access_right": work.access_right,
+                "license": work.license,
+                "abstract": work.abstract,
+                "reconciled_sources": ",".join(sources),
+                "reconciled_source_count": len(sources),
+            }
+        )
+    return pl.from_dicts(rows) if rows else pl.DataFrame()
+
+
+def _overlay_reconciled_work_fields(
+    legacy_merged: pl.DataFrame,
+    overlay_df: pl.DataFrame,
+) -> pl.DataFrame:
+    """Overlay reconciled canonical work fields onto the legacy merged export."""
+    if overlay_df.is_empty():
+        return legacy_merged
+
+    overlay = (
+        overlay_df.with_columns(_reconciliation_key_expr().alias("__reconcile_key"))
+        .filter(pl.col("__reconcile_key").is_not_null())
+        .unique(subset=["__reconcile_key"], keep="first")
+    )
+    if overlay.is_empty():
+        return legacy_merged
+
+    if legacy_merged.is_empty():
+        return overlay.drop("__reconcile_key")
+
+    legacy = legacy_merged.with_columns(_reconciliation_key_expr().alias("__reconcile_key"))
+    renamed_overlay = overlay.rename(
+        {
+            column: f"{column}__reconciled"
+            for column in overlay.columns
+            if column != "__reconcile_key"
+        }
+    )
+    joined = legacy.join(renamed_overlay, on="__reconcile_key", how="left")
+
+    overlay_columns = [column for column in overlay.columns if column != "__reconcile_key"]
+    update_exprs: list[pl.Expr] = []
+    for column in overlay_columns:
+        shadow = f"{column}__reconciled"
+        if column in legacy_merged.columns:
+            update_exprs.append(pl.coalesce([pl.col(shadow), pl.col(column)]).alias(column))
+        else:
+            update_exprs.append(pl.col(shadow).alias(column))
+
+    return joined.with_columns(update_exprs).drop(
+        "__reconcile_key",
+        *[f"{column}__reconciled" for column in overlay_columns],
+    )
+
+
+async def _build_reconciled_transition_output(
+    *,
+    legacy_merged: pl.DataFrame,
+    pure_works: list[CanonicalWork],
+    openalex_works: list[CanonicalWork],
+    openaire_client: OpenAIREClient | None,
+) -> pl.DataFrame | None:
+    """Build a bounded reconciled merged-output sidecar for transition review."""
+    if not pure_works and not openalex_works:
+        return None
+
+    sources: dict[Source, list[CanonicalWork]] = {}
+    if pure_works:
+        sources[Source.PURE] = pure_works
+    if openalex_works:
+        sources[Source.OPENALEX] = openalex_works
+
+    openaire_works = await _fetch_openaire_supplemental_works(
+        pure_works=pure_works,
+        openalex_works=openalex_works,
+        openaire_client=openaire_client,
+    )
+    if openaire_works:
+        sources[Source.OPENAIRE] = openaire_works
+
+    reconciled_works, match_results, metrics = reconcile_works(sources)
+    accepted_matches = sum(1 for result in match_results if result.accepted)
+    logger.info(
+        "Runtime reconciliation candidate produced {} merged works (accepted matches={}, unmatched={})",
+        len(reconciled_works),
+        accepted_matches,
+        metrics.unmatched,
+    )
+
+    overlay_df = _canonical_works_to_overlay_df(reconciled_works)
+    return _overlay_reconciled_work_fields(legacy_merged, overlay_df)
+
+
+def _write_parity_support_artifacts(
+    *,
+    output_dir: pathlib.Path,
+    pure_publications_clean: pl.DataFrame | None,
+    pure_persons: pl.DataFrame | None,
+    pure_org_units: pl.DataFrame | None,
+    openalex_works_clean: pl.DataFrame | None,
+    authors_enriched: pl.DataFrame | None,
+) -> None:
+    """Write parity-support artifacts alongside the main pipeline outputs."""
+    artifacts: dict[str, pl.DataFrame | None] = {
+        "pure_publications_clean.parquet": pure_publications_clean,
+        "pure_persons.parquet": pure_persons,
+        "pure_orgunits.parquet": pure_org_units,
+        "openalex_works_clean.parquet": openalex_works_clean,
+        "authors_enriched.parquet": authors_enriched,
+    }
+
+    for filename, df in artifacts.items():
+        if df is None:
+            continue
+        export.write_parquet(df, output_dir / filename)
