@@ -21,7 +21,8 @@ from selectolax.parser import HTMLParser
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
-from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
+from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.polars_frames import robust_from_dicts
 
 #: Minimum Levenshtein similarity to accept when ranking ambiguous candidates.
 MIN_CANDIDATE_SIMILARITY: float = 0.55
@@ -136,16 +137,6 @@ class UTPeopleClient(BaseClient):
         Returns:
             A list of candidate dictionaries; empty list when no matches.
         """
-        # If cache retrieval is enabled, try to load cached results for this name
-        if getattr(settings, "use_cache_for_retrieval", False):
-            try:
-                fname = name.lower().replace(" ", "_")[:64]
-                df = load_dataframe_parquet(f"ut_people_search_{fname}")
-                if df is not None and df.height:
-                    return df.to_dicts()
-            except (FileNotFoundError, OSError, pl.exceptions.ComputeError) as exc:
-                logger.debug("Cache miss for UT People search '{}': {}", name, exc)
-
         data = await self._fetch_search_page(
             name,
             page=0,
@@ -181,7 +172,7 @@ class UTPeopleClient(BaseClient):
         try:
             if settings.persist_intermediate and candidates:
                 fname = name.lower().replace(" ", "_")[:64]
-                save_dataframe_parquet(pl.from_dicts(candidates), f"ut_people_search_{fname}")
+                save_dataframe_parquet(robust_from_dicts(candidates), f"ut_people_search_{fname}")
         except (OSError, pl.exceptions.ComputeError) as exc:
             logger.debug("Failed to persist UT People search for '{}': {}", name, exc)
         return candidates
