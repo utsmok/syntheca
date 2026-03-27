@@ -16,8 +16,49 @@ from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
-from syntheca.utils.persistence import load_dataframe_parquet, save_dataframe_parquet
+from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.polars_frames import robust_from_dicts
 from syntheca.utils.progress import get_next_position
+
+_PURE_PUBLICATION_STRING_FIELDS: tuple[str, ...] = ("volume", "issue", "start_page", "end_page")
+
+
+def pure_publications_to_frame(records: list[dict[str, Any]] | None) -> pl.DataFrame:
+    """Materialize parsed Pure publication records into a Polars DataFrame.
+
+    Pure OAI bibliographic fields such as volume, issue, and page ranges may
+    arrive with mixed scalar types across records. Keep these columns stable as
+    strings before handing them to Polars so schema inference does not fail when
+    a later row changes type.
+
+    Args:
+        records (list[dict[str, Any]] | None): Parsed Pure publication records.
+
+    Returns:
+        pl.DataFrame: Publication DataFrame with stable string bibliographic fields.
+
+    """
+    if not records:
+        return pl.DataFrame()
+
+    normalized_records: list[dict[str, Any]] = []
+    for record in records:
+        normalized = dict(record)
+        for field in _PURE_PUBLICATION_STRING_FIELDS:
+            value = normalized.get(field)
+            if value is None or isinstance(value, str):
+                continue
+            if isinstance(value, dict):
+                text_value = value.get("#text")
+                normalized[field] = None if text_value is None else str(text_value)
+                continue
+            normalized[field] = str(value)
+        normalized_records.append(normalized)
+
+    return robust_from_dicts(
+        normalized_records,
+        schema_overrides={field: pl.Utf8 for field in _PURE_PUBLICATION_STRING_FIELDS},
+    )
 
 
 class PureOAIClient(BaseClient):
@@ -514,21 +555,6 @@ class PureOAIClient(BaseClient):
             return final
 
         for collection in collections:
-            # If cache-for-retrieval is enabled, try to load the cached parquet file for this collection
-            if settings.use_cache_for_retrieval:
-                try:
-                    df = load_dataframe_parquet(f"pure_{collection}")
-                    if df is not None and df.height:
-                        results[collection] = df.to_dicts()
-                        continue
-                except (FileNotFoundError, OSError) as exc:
-                    logger.debug("Cache miss for pure_{}: {}", collection, exc)
-                except (pl.exceptions.ComputeError, pl.exceptions.SchemaError) as exc:
-                    logger.warning(
-                        "Corrupt cache for pure_{}, falling back to live retrieval: {}",
-                        collection,
-                        exc,
-                    )
             # Do not pass enumerated positions — allocate unique positions globally using get_next_position
             results.update(await get_collection_data(collection, position=None))
 
@@ -538,7 +564,11 @@ class PureOAIClient(BaseClient):
             for col, recs in results.items():
                 if recs:
                     try:
-                        df = pl.from_dicts(recs)
+                        df = (
+                            pure_publications_to_frame(recs)
+                            if col == "openaire_cris_publications"
+                            else robust_from_dicts(recs)
+                        )
                         save_dataframe_parquet(df, f"pure_{col}")
                     except (OSError, pl.exceptions.ComputeError, pl.exceptions.SchemaError) as exc:
                         logger.warning(

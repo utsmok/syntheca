@@ -1,10 +1,11 @@
 import pathlib
 
+import polars as pl
 import pytest
 import xmltodict
 from httpx import MockTransport, Response
 
-from syntheca.clients.pure_oai import PureOAIClient
+from syntheca.clients.pure_oai import PureOAIClient, pure_publications_to_frame
 from syntheca.config import settings
 from syntheca.utils.persistence import load_dataframe_parquet
 
@@ -208,3 +209,46 @@ async def test_persistence_of_collections(tmp_path: pathlib.Path):
     # restore
     settings.persist_intermediate = False
     settings.cache_dir = old_cache
+
+
+def test_pure_publications_to_frame_stabilizes_bibliographic_string_fields() -> None:
+    records = [
+        {
+            "id": "pub-1",
+            "title": "First",
+            "volume": 12,
+            "issue": 4,
+            "start_page": 100,
+            "end_page": 115,
+        },
+        {
+            "id": "pub-2",
+            "title": "Second",
+            "volume": "13",
+            "issue": "32",
+            "start_page": "210",
+            "end_page": "230",
+        },
+    ]
+
+    df = pure_publications_to_frame(records)
+
+    for field in ("volume", "issue", "start_page", "end_page"):
+        assert df.schema[field] == pl.Utf8
+
+    assert df.select(["volume", "issue", "start_page", "end_page"]).to_dicts() == [
+        {"volume": "12", "issue": "4", "start_page": "100", "end_page": "115"},
+        {"volume": "13", "issue": "32", "start_page": "210", "end_page": "230"},
+    ]
+
+
+def test_pure_publications_to_frame_keeps_sparse_late_columns() -> None:
+    records: list[dict[str, object]] = [
+        {"id": f"pub-{index}", "title": f"Publication {index}"} for index in range(150)
+    ]
+    records[-1]["authors"] = [{"person_id": "p-1", "family_names": "Late"}]
+
+    df = pure_publications_to_frame(records)
+
+    assert "authors" in df.columns
+    assert df["authors"].to_list()[-1] == [{"person_id": "p-1", "family_names": "Late"}]
