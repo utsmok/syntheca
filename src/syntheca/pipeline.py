@@ -168,11 +168,11 @@ class Pipeline:
             # Load cached works and compute remaining DOIs to fetch
             if settings.persist_intermediate:
                 from syntheca.utils.persistence import (
-                    load_dataframe_parquet,
+                    load_parquet_all,
                     save_dataframe_parquet,
                 )
 
-                cached_oa = load_dataframe_parquet("openalex_works")
+                cached_oa = load_parquet_all("openalex_works")
                 if cached_oa is not None and cached_oa.height:
                     cached_dois = set(
                         cached_oa.select(
@@ -242,6 +242,9 @@ class Pipeline:
             # Persist the merged result so the cache grows each run
             if settings.persist_intermediate and openalex_works_df.height:
                 save_dataframe_parquet(openalex_works_df, "openalex_works")
+                from syntheca.utils.persistence import cleanup_chunks
+
+                cleanup_chunks("openalex_works")
 
         oa_clean = (
             cleaning.clean_publications(openalex_works_df)

@@ -7,7 +7,7 @@ from httpx import MockTransport, Response
 
 from syntheca.clients.openalex import OpenAlexClient
 from syntheca.config import settings
-from syntheca.utils.persistence import load_dataframe_parquet
+from syntheca.utils.persistence import load_dataframe_parquet, load_parquet_all
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures" / "openalex"
 
@@ -62,7 +62,7 @@ async def test_get_works_by_ids_persistent_cache(tmp_path: pathlib.Path):
 
     try:
         await client.get_works_by_ids(["10.123/test"])
-        df = load_dataframe_parquet("openalex_works")
+        df = load_parquet_all("openalex_works")
         assert df is not None
         assert df.height == 1
     finally:
@@ -179,8 +179,8 @@ async def test_get_works_by_ids_no_longer_writes_raw_duplicate(tmp_path: pathlib
         await client.get_works_by_ids(["10.123/test"])
         raw_df = load_dataframe_parquet("openalex_works_raw")
         assert raw_df is None, "openalex_works_raw should no longer be written"
-        # But openalex_works SHOULD exist
-        works_df = load_dataframe_parquet("openalex_works")
+        # But openalex_works SHOULD exist (as chunks)
+        works_df = load_parquet_all("openalex_works")
         assert works_df is not None
         assert works_df.height == 1
     finally:

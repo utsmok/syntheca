@@ -20,7 +20,7 @@ from syntheca.clients.base import BaseClient
 from syntheca.config import settings, ut_profile
 from syntheca.models.openalex import Work
 from syntheca.processing.cleaning import normalize_single_doi
-from syntheca.utils.persistence import save_dataframe_parquet
+from syntheca.utils.persistence import save_dataframe_parquet, save_parquet_chunk
 from syntheca.utils.polars_frames import robust_from_dicts
 from syntheca.utils.progress import get_next_position
 
@@ -30,6 +30,7 @@ class OpenAlexClient(BaseClient):
 
     BASE = settings.openalex_base_url
     PER_PAGE = 50
+    PERSIST_EVERY = 1000
     _BATCH_RETRY_DELAYS = (1.0,)
     _SINGLE_ID_RETRY_DELAYS = (1.0, 2.0)
 
@@ -166,22 +167,52 @@ class OpenAlexClient(BaseClient):
         if id_type_param == "doi":
             ids = [i for i in [normalize_single_doi(i) for i in ids] if i]
         results: list[Work] = []
+        _pending: list[dict] = []
+        _chunk_index = 0
+        _chunk_schema: dict | None = None
         bar = None
         if settings.enable_progress:
             pos = position if position is not None else get_next_position()
             bar = tqdm(total=len(ids), desc="openalex:ids", position=pos, unit="work")
+
+        def _flush_chunk() -> None:
+            nonlocal _chunk_index, _chunk_schema
+            if not _pending:
+                return
+            try:
+                # First chunk establishes the schema; subsequent chunks reuse it
+                # so every parquet file has an identical column layout.
+                chunk_df = robust_from_dicts(
+                    _pending,
+                    schema=_chunk_schema,
+                )
+                if _chunk_schema is None:
+                    _chunk_schema = chunk_df.schema
+                save_parquet_chunk("openalex_works", _chunk_index, chunk_df)
+                _chunk_index += 1
+            except Exception as exc:
+                logger.warning(
+                    "Failed to persist OpenAlex chunk ({} rows): {}", len(_pending), exc
+                )
+            _pending.clear()
 
         for batch in self._chunks(ids, self.PER_PAGE):
             items = await self._fetch_works_batch_resilient(list(batch), id_type_param)
             for it in items:
                 try:
                     results.append(Work.from_dict(it))
+                    _pending.append(dataclasses.asdict(results[-1]))
                 except Exception:
                     continue
             if bar is not None:
                 bar.update(len(batch))
+            if settings.persist_intermediate and len(_pending) >= self.PERSIST_EVERY:
+                _flush_chunk()
         if bar is not None:
             bar.close()
+        # Final flush for remaining rows
+        if settings.persist_intermediate:
+            _flush_chunk()
         return results
 
     async def get_works_by_title(self, title: str) -> list[Work]:

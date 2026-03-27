@@ -82,3 +82,77 @@ def append_to_parquet(name: str, df: pl.DataFrame) -> pathlib.Path:
         df = pl.concat([existing, df])
     df.write_parquet(str(p))
     return p
+
+
+def save_parquet_chunk(name: str, chunk_index: int, df: pl.DataFrame) -> pathlib.Path:
+    """Write a numbered chunk file under the ``_chunks/<name>/`` subdirectory.
+
+    Each call produces a standalone parquet file; no ``pl.concat`` is
+    performed during writes.  This avoids struct-schema mismatches between
+    chunks that would occur with :func:`append_to_parquet`.
+
+    Args:
+        name: Logical dataset name (without .parquet suffix).
+        chunk_index: Zero-based chunk number (used for file naming and ordering).
+        df: DataFrame to write as a chunk.
+
+    Returns:
+        Path to the written chunk file.
+    """
+    chunk_dir = pathlib.Path(settings.cache_dir) / "_chunks" / name
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+    p = chunk_dir / f"{chunk_index:04d}.parquet"
+    df.write_parquet(str(p))
+    return p
+
+
+def load_parquet_all(name: str) -> pl.DataFrame | None:
+    """Load data from either chunk files or a single consolidated parquet.
+
+    Checks for chunk files first (from an in-progress or interrupted run),
+    then falls back to the single consolidated file.  Corrupted or
+    unreadable chunk files are skipped so a single bad chunk does not
+    prevent loading the rest.
+
+    Args:
+        name: Logical dataset name (without .parquet suffix).
+
+    Returns:
+        The loaded DataFrame, or ``None`` when no data is found.
+    """
+    # Prefer chunks (in-progress or crash-recovery data)
+    chunk_dir = pathlib.Path(settings.cache_dir) / "_chunks" / name
+    if chunk_dir.exists():
+        files = sorted(chunk_dir.glob("*.parquet"))
+        if files:
+            loaded: list[pl.DataFrame] = []
+            for f in files:
+                try:
+                    loaded.append(pl.read_parquet(str(f)))
+                except Exception:
+                    pass  # skip corrupted / partially-written chunks
+            if loaded:
+                try:
+                    return pl.concat(loaded)
+                except pl.ShapeError:
+                    # Fallback: struct schemas may still differ across
+                    # chunks from interrupted / pre-fix runs.
+                    return pl.concat(loaded, how="diagonal_relaxed")
+
+    # Fall back to consolidated single file
+    return load_dataframe_parquet(name)
+
+
+def cleanup_chunks(name: str) -> None:
+    """Remove the ``_chunks/<name>/`` directory after consolidation.
+
+    Safe to call even when no chunks exist.
+
+    Args:
+        name: Logical dataset name (without .parquet suffix).
+    """
+    import shutil
+
+    chunk_dir = pathlib.Path(settings.cache_dir) / "_chunks" / name
+    if chunk_dir.exists():
+        shutil.rmtree(chunk_dir)
