@@ -1,3 +1,4 @@
+import json
 import pathlib
 
 import pytest
@@ -7,18 +8,16 @@ from syntheca.clients.openalex import OpenAlexClient
 from syntheca.config import settings
 from syntheca.utils.persistence import load_dataframe_parquet
 
+FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures" / "openalex"
+
+
+def _load_openalex_fixture(name: str) -> dict:
+    return json.loads((FIXTURES_DIR / name).read_text(encoding="utf-8"))
+
 
 @pytest.mark.asyncio
-async def test_get_works_by_ids_parses(monkeypatch):
-    sample = {
-        "results": [
-            {
-                "id": "https://openalex.org/W1",
-                "display_name": "Test Work",
-                "doi": "10.123/test",
-            }
-        ]
-    }
+async def test_get_works_by_ids_parses_live_like_awards_without_silent_drop():
+    sample = _load_openalex_fixture("works_response_live_contract.json")
 
     async def handler(request):
         # Return the same JSON for any call
@@ -29,24 +28,20 @@ async def test_get_works_by_ids_parses(monkeypatch):
     client.client = client.client.__class__(transport=transport)
 
     works = await client.get_works_by_ids(["10.123/test"])
-    assert len(works) >= 0
+    assert len(works) == 1
+    assert works[0].id == sample["results"][0]["id"]
+    assert works[0].grants == []
+    assert works[0].awards is not None
+    assert works[0].awards[0].funder_award_id == "EP/S019472/1"
 
 
 @pytest.mark.asyncio
 async def test_get_works_by_ids_persistent_cache(tmp_path: pathlib.Path):
+    sample = _load_openalex_fixture("works_response_live_contract.json")
     old_cache = settings.cache_dir
+    old_persist = settings.persist_intermediate
     settings.cache_dir = tmp_path
     settings.persist_intermediate = True
-
-    sample = {
-        "results": [
-            {
-                "id": "https://openalex.org/W1",
-                "display_name": "Test Work",
-                "doi": "10.123/test",
-            }
-        ]
-    }
 
     async def handler(request):
         return Response(200, json=sample)
@@ -55,31 +50,31 @@ async def test_get_works_by_ids_persistent_cache(tmp_path: pathlib.Path):
     client = OpenAlexClient()
     client.client = client.client.__class__(transport=transport)
 
-    await client.get_works_by_ids(["10.123/test"])
-    # verify file exists
-    df = load_dataframe_parquet("openalex_works")
-    assert df is not None
-
-    settings.persist_intermediate = False
-    settings.cache_dir = old_cache
+    try:
+        await client.get_works_by_ids(["10.123/test"])
+        df = load_dataframe_parquet("openalex_works")
+        assert df is not None
+        assert df.height == 1
+    finally:
+        settings.persist_intermediate = old_persist
+        settings.cache_dir = old_cache
 
 
 @pytest.mark.asyncio
-async def test_get_works_by_title(monkeypatch):
-    # Autocomplete returns a list with id; request for works details returns the work JSON
-    autocomplete = {"results": [{"id": "https://openalex.org/W1", "display_name": "Test Work"}]}
-    work_json = {
-        "id": "https://openalex.org/W1",
-        "display_name": "Test Work",
-        "doi": "10.123/test",
+async def test_get_works_by_title_keeps_successful_details():
+    work_json = _load_openalex_fixture("works_response_live_contract.json")["results"][0]
+    autocomplete = {
+        "results": [
+            {"id": work_json["id"], "display_name": work_json["display_name"]},
+            {"id": "https://openalex.org/W404", "display_name": "Broken Work"},
+        ]
     }
 
     async def handler(request):
         url = str(request.url)
         if "/autocomplete/works" in url:
             return Response(200, json=autocomplete)
-        # simulate a failing work detail for one of the results to ensure error-tolerance
-        if "/works/https%3A//openalex.org/W1" in url:
+        if "W404" in url:
             return Response(500)
         return Response(200, json=work_json)
 
@@ -88,10 +83,9 @@ async def test_get_works_by_title(monkeypatch):
     client.client = client.client.__class__(transport=transport)
 
     results = await client.get_works_by_title("Some title")
-    assert isinstance(results, list)
-    # since one of the detail calls failed, results may be empty or only include the successful fetch
-    # we assert the code handles exceptions and returns a list
-    assert isinstance(results, list)
+    assert len(results) == 1
+    assert results[0].id == work_json["id"]
+    assert results[0].display_name == work_json["display_name"]
 
 
 def test_clean_openalex_raw_data():

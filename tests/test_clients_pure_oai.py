@@ -8,6 +8,12 @@ from syntheca.clients.pure_oai import PureOAIClient
 from syntheca.config import settings
 from syntheca.utils.persistence import load_dataframe_parquet
 
+FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures" / "pure"
+
+
+def _load_pure_fixture(name: str) -> str:
+    return (FIXTURES_DIR / name).read_text(encoding="utf-8")
+
 
 def sample_oai_xml():
     return """
@@ -118,6 +124,51 @@ def test_parse_wrapped_person_and_orgunit():
     assert parsed_org["type"] == "Department"
     assert parsed_org["part_of_org_id"] == "parent-org-id"
     assert parsed_org["part_of_name"] == "Faculty of TNW"
+
+
+def test_parse_live_publication_repeated_affiliations() -> None:
+    client = PureOAIClient()
+    parsed = xmltodict.parse(_load_pure_fixture("publication_getrecord_live.xml"))
+    publication = parsed["OAI-PMH"]["GetRecord"]["record"]["metadata"]["cerif:Publication"]
+
+    result = client._parse_publication(publication)
+    authors = result["authors"]
+
+    assert result["publication_date"] == "2008"
+    assert authors[0]["family_names"] == "Vanberkel"
+    assert authors[0]["affiliation_id"] == "feb87d2b-bd3d-4343-bc74-999d4bf8a41f"
+    assert authors[0]["affiliation_name"] == "Stochastic Operations Research"
+    assert authors[0]["affiliations"] == [
+        {
+            "affiliation_id": "feb87d2b-bd3d-4343-bc74-999d4bf8a41f",
+            "affiliation_name": "Stochastic Operations Research",
+        },
+        {
+            "affiliation_id": "91869f52-72ee-4e39-a933-458a3dc67260",
+            "affiliation_name": "Center for Healthcare Operations Improvement and Research",
+        },
+    ]
+    assert len(authors[1]["affiliations"]) == 2
+
+
+def test_parse_live_orgunit_repeated_identifiers() -> None:
+    client = PureOAIClient()
+    parsed = xmltodict.parse(_load_pure_fixture("orgunit_getrecord_live.xml"))
+    orgunit = parsed["OAI-PMH"]["GetRecord"]["record"]["metadata"]["cerif:OrgUnit"]
+
+    result = client._parse_orgunit(orgunit)
+
+    assert result["identifier"] == "60020599"
+    assert result["identifier_type"] == "Scopus affiliation ID"
+    assert len(result["identifiers"]) == 10
+    assert result["identifiers"][0] == {
+        "value": "60020599",
+        "type": "Scopus affiliation ID",
+    }
+    assert result["identifiers"][-1] == {
+        "value": "60017915",
+        "type": "Scopus affiliation ID",
+    }
 
 
 @pytest.mark.asyncio

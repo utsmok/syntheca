@@ -80,8 +80,24 @@ class TestOpenAIREModels:
         resp = ResearchProductSearchResponse.model_validate(fixture)
         indicators = resp.results[0].indicators
         assert indicators is not None
+        assert indicators.citation_impact is None
         assert indicators.bip_indicators.citation_count == 150.0
+        assert indicators.citation_count == 150.0
         assert indicators.usage_counts.downloads == 5200
+
+    def test_research_product_live_indicators(self):
+        fixture = _load_fixture("research_product_live_response.json")
+        resp = ResearchProductSearchResponse.model_validate(fixture)
+
+        assert resp.header.num_found == 1
+        assert len(resp.results) == 1
+
+        indicators = resp.results[0].indicators
+        assert indicators is not None
+        assert indicators.bip_indicators is None
+        assert indicators.citation_impact is not None
+        assert indicators.citation_impact.citation_count == 108.0
+        assert indicators.citation_count == 108.0
 
     def test_organization_response(self):
         raw = {
@@ -134,6 +150,7 @@ class TestAdapters:
         assert work.doi == "10.1038/s41586-023-06600-9"
         assert work.publication_year == 2023
         assert work.publisher == "Springer Science and Business Media LLC"
+        assert work.language == "en"
         assert work.is_oa is True
         assert work.oa_color == "hybrid"
         assert work.primary_host_name == "Nature"
@@ -164,6 +181,17 @@ class TestAdapters:
         assert work.title == "A second test publication record"
         assert work.is_oa is False  # RESTRICTED → not OPEN
         assert work.cited_by_count is None
+
+    def test_product_live_fixture_uses_citation_impact_and_normalizes_language(self):
+        fixture = _load_fixture("research_product_live_response.json")
+        work = openaire_product_to_canonical(fixture["results"][0])
+
+        assert isinstance(work, CanonicalWork)
+        assert work.doi == "10.1038/s41586-023-06600-9"
+        assert work.language == "en"
+        assert work.cited_by_count == 108
+        assert work.primary_host_name == "Nature"
+        assert "Origin of Life" in work.keywords
 
     def test_org_to_canonical_typed(self):
         org = OpenAIREOrganization.model_validate(
@@ -244,6 +272,29 @@ class TestOpenAIREClient:
         orgs = await client.get_organizations(name="University of Twente")
         assert len(orgs) == 1
         assert orgs[0].legal_name == "University of Twente"
+
+    @pytest.mark.asyncio
+    async def test_get_organizations_precise_uses_legal_name_filter(self):
+        org_response = {
+            "header": {"numFound": 1, "pageSize": 50},
+            "results": [{"id": "org_1", "legalName": "University of Twente"}],
+        }
+        seen_params = {}
+
+        async def handler(request):
+            nonlocal seen_params
+            seen_params = dict(request.url.params)
+            return Response(200, json=org_response)
+
+        transport = MockTransport(handler)
+        client = OpenAIREClient(base_url="https://api.openaire.eu/graph")
+        client.client = client.client.__class__(transport=transport)
+
+        orgs = await client.get_organizations(name="University of Twente", precise=True)
+
+        assert len(orgs) == 1
+        assert seen_params["legalName"] == "University of Twente"
+        assert "search" not in seen_params
 
     @pytest.mark.asyncio
     async def test_cursor_pagination_multi_page(self):
@@ -390,6 +441,30 @@ class TestOpenAIREProvider:
         orgs = await provider.fetch("organizations", name="University of Twente")
         assert len(orgs) == 1
         assert all(isinstance(o, CanonicalOrganization) for o in orgs)
+
+    @pytest.mark.asyncio
+    async def test_fetch_organizations_precise(self):
+        org_response = {
+            "header": {"numFound": 1, "pageSize": 50},
+            "results": [{"id": "org_1", "legalName": "University of Twente"}],
+        }
+        seen_params = {}
+
+        async def handler(request):
+            nonlocal seen_params
+            seen_params = dict(request.url.params)
+            return Response(200, json=org_response)
+
+        transport = MockTransport(handler)
+        client = OpenAIREClient(base_url="https://api.openaire.eu/graph")
+        client.client = client.client.__class__(transport=transport)
+
+        provider = OpenAIREProvider(client)
+        orgs = await provider.fetch("organizations", name="University of Twente", precise=True)
+
+        assert len(orgs) == 1
+        assert seen_params["legalName"] == "University of Twente"
+        assert "search" not in seen_params
 
     @pytest.mark.asyncio
     async def test_fetch_unsupported_entity(self):

@@ -1,6 +1,7 @@
 import json
 import pathlib
 
+import polars as pl
 import pytest
 from httpx import MockTransport, Response
 
@@ -10,6 +11,7 @@ from syntheca.clients.ut_people import (
     _normalize_profile_url,
     rank_candidates,
 )
+from syntheca.processing.enrichment import parse_scraped_org_details
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "ut_people"
 
@@ -25,6 +27,17 @@ def _load_rpc_fixture() -> dict:
 
 def _load_profile_fixture() -> str:
     return (FIXTURES / "profile_page.html").read_text(encoding="utf8")
+
+
+def _load_live_rpc_fixture() -> dict:
+    return json.loads((FIXTURES / "rpc_live_response.json").read_text(encoding="utf8"))
+
+
+def _load_live_profile_fixture() -> str:
+    html = (FIXTURES / "profile_live_page.html").read_text(encoding="utf8")
+    if '<h2 class="heading2">' not in html:
+        html = f'<h2 class="heading2">{html}'
+    return html
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +113,132 @@ async def test_search_person_already_absolute_url():
     assert results[0]["people_page_url"] == "https://people.utwente.nl/en/persons/test-user"
 
 
+@pytest.mark.asyncio
+async def test_search_person_parses_live_rpc_envelope_fixture():
+    """Live-like UT People RPC envelopes should parse without dropping absolute profile URLs."""
+    rpc_json = _load_live_rpc_fixture()
+
+    async def handler(request):
+        return Response(200, json=rpc_json)
+
+    transport = MockTransport(handler)
+    client = UTPeopleClient()
+    client.client = client.client.__class__(transport=transport)
+
+    results = await client.search_person("Sam Mok", rank=False)
+    assert results
+    assert results[0]["people_page_url"] == "https://people.utwente.nl/s.mok"
+    normalized_urls = [r["people_page_url"] for r in results if r.get("people_page_url")]
+    assert normalized_urls
+    assert all(url.startswith("https://people.utwente.nl/") for url in normalized_urls)
+
+
+@pytest.mark.asyncio
+async def test_search_person_fetches_bounded_additional_page_for_ambiguity():
+    """Ambiguous first-page results should inspect a bounded number of extra pages using totalcount."""
+    page_requests = []
+    responses = {
+        0: {
+            "result": {
+                "options": {
+                    "query": "Alice Researcher",
+                    "page": 0,
+                    "resultsperpage": 20,
+                    "langcode": "en",
+                },
+                "totalcount": 21,
+                "resultshtml": (
+                    '<div class="ut-person-tile">'
+                    '<h3 class="ut-person-tile__title">Alice Q. Researcher</h3>'
+                    '<div class="ut-person-tile__profilelink"><a href="/alice-q">Profile</a></div>'
+                    '<div class="ut-person-tile__orgs"><div>Faculty X</div></div>'
+                    "</div>"
+                    '<div class="ut-person-tile">'
+                    '<h3 class="ut-person-tile__title">Alicia Researcher</h3>'
+                    '<div class="ut-person-tile__profilelink"><a href="/alicia">Profile</a></div>'
+                    '<div class="ut-person-tile__orgs"><div>Faculty X</div></div>'
+                    "</div>"
+                ),
+            }
+        },
+        1: {
+            "result": {
+                "options": {
+                    "query": "Alice Researcher",
+                    "page": 1,
+                    "resultsperpage": 20,
+                    "langcode": "en",
+                },
+                "totalcount": 21,
+                "resultshtml": (
+                    '<div class="ut-person-tile">'
+                    '<h3 class="ut-person-tile__title">Alice Researcher</h3>'
+                    '<div class="ut-person-tile__profilelink"><a href="/alice-researcher">Profile</a></div>'
+                    '<div class="ut-person-tile__orgs"><div>Faculty X</div></div>'
+                    "</div>"
+                ),
+            }
+        },
+    }
+
+    async def handler(request):
+        payload = json.loads(request.content.decode("utf8"))
+        page = payload["params"][0]["page"]
+        page_requests.append(page)
+        return Response(200, json=responses[page])
+
+    transport = MockTransport(handler)
+    client = UTPeopleClient()
+    client.client = client.client.__class__(transport=transport)
+
+    results = await client.search_person("Alice Researcher", max_additional_pages=1)
+    assert page_requests == [0, 1]
+    assert results[0]["found_name"] == "Alice Researcher"
+    assert results[0]["people_page_url"] == f"{BASE_URL}/alice-researcher"
+
+
+@pytest.mark.asyncio
+async def test_search_person_skips_additional_pages_for_confident_exact_match():
+    """Exact first-page matches should not trigger needless pagination even when totalcount is higher."""
+    page_requests = []
+    rpc_json = {
+        "result": {
+            "options": {
+                "query": "Alice Researcher",
+                "page": 0,
+                "resultsperpage": 20,
+                "langcode": "en",
+            },
+            "totalcount": 25,
+            "resultshtml": (
+                '<div class="ut-person-tile">'
+                '<h3 class="ut-person-tile__title">Alice Researcher</h3>'
+                '<div class="ut-person-tile__profilelink"><a href="/alice-researcher">Profile</a></div>'
+                '<div class="ut-person-tile__orgs"><div>Faculty X</div></div>'
+                "</div>"
+                '<div class="ut-person-tile">'
+                '<h3 class="ut-person-tile__title">Alice Q. Researcher</h3>'
+                '<div class="ut-person-tile__profilelink"><a href="/alice-q">Profile</a></div>'
+                '<div class="ut-person-tile__orgs"><div>Faculty X</div></div>'
+                "</div>"
+            ),
+        }
+    }
+
+    async def handler(request):
+        payload = json.loads(request.content.decode("utf8"))
+        page_requests.append(payload["params"][0]["page"])
+        return Response(200, json=rpc_json)
+
+    transport = MockTransport(handler)
+    client = UTPeopleClient()
+    client.client = client.client.__class__(transport=transport)
+
+    results = await client.search_person("Alice Researcher")
+    assert page_requests == [0]
+    assert results[0]["found_name"] == "Alice Researcher"
+
+
 # ---------------------------------------------------------------------------
 # scrape_profile  +  _parse_organization_details
 # ---------------------------------------------------------------------------
@@ -122,6 +261,36 @@ async def test_scrape_profile_fixture():
     assert isinstance(parsed, list)
     assert parsed[0]["faculty"]["abbr"] == "TNW"
     assert parsed[0]["department"]["abbr"] == "CS"
+
+
+@pytest.mark.asyncio
+async def test_scrape_profile_live_fixture_preserves_nonfaculty_hierarchy():
+    """Live-like profile markup should preserve raw hierarchy without forcing level-1 units into faculty semantics."""
+    profile_html = _load_live_profile_fixture()
+
+    async def handler(request):
+        return Response(200, content=profile_html)
+
+    transport = MockTransport(handler)
+    client = UTPeopleClient()
+    client.client = client.client.__class__(transport=transport)
+
+    parsed = await client.scrape_profile("https://people.utwente.nl/s.mok")
+    assert parsed is not None
+    assert parsed[0]["unit"]["name"] == "Library, ICT-Services & Archive"
+    assert parsed[0]["faculty"]["name"] is None
+    assert parsed[0]["department"]["name"] is None
+    assert parsed[0]["hierarchy"][1]["abbr"] == "LISA-EIS"
+    assert parsed[1]["faculty"]["abbr"] == "EEMCS"
+
+    authors_df = pl.DataFrame({"org_details_pp": [parsed]})
+    enriched = parse_scraped_org_details(authors_df)
+    assert (
+        enriched["faculty"][0]
+        == "Faculty of Electrical Engineering, Mathematics and Computer Science"
+    )
+    assert enriched["department"][0] is None
+    assert enriched["eemcs"][0] is True
 
 
 @pytest.mark.asyncio
@@ -187,7 +356,12 @@ def test_normalize_already_absolute():
 
 def test_normalize_http_url_untouched():
     url = "http://people.utwente.nl/en/persons/alice"
-    assert _normalize_profile_url(url) == url
+    assert _normalize_profile_url(url) == "https://people.utwente.nl/en/persons/alice"
+
+
+def test_normalize_url_canonicalizes_www_query_and_fragment():
+    url = "https://www.people.utwente.nl/en/persons/alice/?foo=bar#section"
+    assert _normalize_profile_url(url) == "https://people.utwente.nl/en/persons/alice"
 
 
 # ---------------------------------------------------------------------------

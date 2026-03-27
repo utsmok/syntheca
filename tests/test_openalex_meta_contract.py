@@ -16,11 +16,21 @@ from syntheca.models.openalex import Meta, Response, Work
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
 
 
+def _load_openalex_fixture(name: str) -> dict:
+    path = FIXTURES_DIR / "openalex" / name
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 @pytest.fixture
 def openalex_response_data() -> dict:
     """Load the OpenAlex works_response fixture."""
-    path = FIXTURES_DIR / "openalex" / "works_response.json"
-    return json.loads(path.read_text())
+    return _load_openalex_fixture("works_response.json")
+
+
+@pytest.fixture
+def openalex_live_meta_data() -> dict:
+    """Load the trimmed saved-live OpenAlex response fixture."""
+    return _load_openalex_fixture("works_response_live.json")
 
 
 def test_meta_parses_known_fields(openalex_response_data: dict):
@@ -46,6 +56,19 @@ def test_meta_survives_cost_usd_field(openalex_response_data: dict):
     meta = Meta.from_dict(raw_meta)
     # The model should parse without error; cost_usd is not a declared field
     assert meta.count == 2
+
+
+def test_meta_survives_saved_live_payload_without_next_cursor(openalex_live_meta_data: dict):
+    """Saved live-like payloads may omit ``next_cursor`` while adding ``cost_usd``."""
+    raw_meta = openalex_live_meta_data["meta"]
+
+    assert "cost_usd" in raw_meta
+    assert "next_cursor" not in raw_meta
+
+    meta = Meta.from_dict(raw_meta)
+
+    assert meta.per_page == 1
+    assert meta.next_cursor is None
 
 
 def test_meta_required_fields_present(openalex_response_data: dict):
