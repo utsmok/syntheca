@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import time
 from collections.abc import Iterable
 from urllib.parse import quote
 
@@ -166,6 +167,8 @@ class OpenAlexClient(BaseClient):
         id_type_param = "openalex" if id_type == "id" else id_type
         if id_type_param == "doi":
             ids = [i for i in [normalize_single_doi(i) for i in ids] if i]
+        logger.info("openalex: fetching {} {} identifiers", len(ids), id_type_param)
+        _method_t0 = time.monotonic()
         results: list[Work] = []
         _pending: list[dict] = []
         _chunk_index = 0
@@ -188,6 +191,11 @@ class OpenAlexClient(BaseClient):
                 )
                 if _chunk_schema is None:
                     _chunk_schema = chunk_df.schema
+                logger.debug(
+                    "openalex: flushing chunk {} with {} pending works",
+                    _chunk_index,
+                    len(_pending),
+                )
                 save_parquet_chunk("openalex_works", _chunk_index, chunk_df)
                 _chunk_index += 1
             except Exception as exc:
@@ -197,7 +205,9 @@ class OpenAlexClient(BaseClient):
             _pending.clear()
 
         for batch in self._chunks(ids, self.PER_PAGE):
+            logger.debug("openalex: fetching batch of {} identifiers", len(batch))
             items = await self._fetch_works_batch_resilient(list(batch), id_type_param)
+            logger.debug("openalex: batch returned {} results", len(items))
             for it in items:
                 try:
                     results.append(Work.from_dict(it))
@@ -213,6 +223,12 @@ class OpenAlexClient(BaseClient):
         # Final flush for remaining rows
         if settings.persist_intermediate:
             _flush_chunk()
+        logger.info(
+            "openalex: retrieved {} works from {} identifiers ({:.1f}s)",
+            len(results),
+            len(ids),
+            time.monotonic() - _method_t0,
+        )
         return results
 
     async def get_works_by_title(self, title: str) -> list[Work]:

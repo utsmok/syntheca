@@ -31,7 +31,8 @@ async def test_pipeline_merge_and_write(tmp_path: pathlib.Path):
     assert (tmp_path / "merged.reconciled.parquet").exists()
     assert (tmp_path / "merged.reconciled.xlsx").exists()
     assert (tmp_path / "pure_publications_clean.parquet").exists()
-    assert (tmp_path / "openalex_works_clean.parquet").exists()
+    # openalex_works_clean is no longer written to the output dir as a parity
+    # artifact — it is already persisted to the cache directory.
 
 
 @pytest.mark.asyncio

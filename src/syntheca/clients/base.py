@@ -109,6 +109,7 @@ class BaseClient:
             if cached_response is not None:
                 self.logger.debug("Raw response cache hit for {} {}", method, url)
                 return cached_response
+            self.logger.debug("Raw response cache miss for {} {}", method, url)
 
         try:
             response = await self.client.request(method, url, **kwargs)

@@ -14,11 +14,13 @@ import inspect
 import json
 import pathlib
 import pickle
+import time
 from hashlib import blake2b
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 import httpx
+from loguru import logger
 
 from syntheca.config import settings
 
@@ -206,8 +208,16 @@ def save_raw_response(
             "content": response.content,
         },
     }
+    _t0 = time.monotonic()
     with gzip.open(path, "wb", compresslevel=6) as handle:
         pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    _elapsed = time.monotonic() - _t0
+    logger.debug(
+        "cache: saved response {} ({} bytes compressed, {:.1f}s)",
+        cache_key[:12],
+        path.stat().st_size,
+        _elapsed,
+    )
     return path
 
 
@@ -224,16 +234,20 @@ def load_raw_response(cache_dir: pathlib.Path, cache_key: str) -> httpx.Response
     """
     path = get_raw_response_cache_path(cache_dir, cache_key)
     if not path.exists():
+        logger.debug("cache: miss for {}", cache_key[:12])
         return None
 
+    _t0 = time.monotonic()
     try:
         with gzip.open(path, "rb") as handle:
             payload = pickle.load(handle)
-    except EOFError, OSError, pickle.PickleError:
+    except (EOFError, OSError, pickle.PickleError):
+        logger.debug("cache: corrupted entry for {}, removing", cache_key[:12])
         path.unlink(missing_ok=True)
         return None
 
     if payload.get("version") != RAW_RESPONSE_CACHE_VERSION:
+        logger.debug("cache: version mismatch for {}", cache_key[:12])
         return None
 
     request_data = payload.get("request") or {}
@@ -254,6 +268,7 @@ def load_raw_response(cache_dir: pathlib.Path, cache_key: str) -> httpx.Response
     response.extensions["syntheca.from_cache"] = True
     response.extensions["syntheca.cache_key"] = cache_key
     response.extensions["syntheca.cache_path"] = str(path)
+    logger.debug("cache: hit for {} ({:.1f}s)", cache_key[:12], time.monotonic() - _t0)
     return response
 
 

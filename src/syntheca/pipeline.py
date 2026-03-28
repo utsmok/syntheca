@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import pathlib
+import time
 
 import httpx
 import polars as pl
@@ -150,7 +151,13 @@ class Pipeline:
             try:
                 from syntheca.utils.persistence import save_dataframe_parquet
 
+                logger.info("Saving {} rows to pure_publications_clean", pubs_clean.height)
+                _pubs_t0 = time.monotonic()
                 save_dataframe_parquet(pubs_clean, "pure_publications_clean")
+                logger.info(
+                    "Saved pure_publications_clean in {:.1f}s",
+                    time.monotonic() - _pubs_t0,
+                )
             except Exception as exc:
                 logger.warning(
                     "Failed to persist pure_publications_clean ({} rows): {}",
@@ -201,7 +208,13 @@ class Pipeline:
                     )
 
             if ids_to_fetch:
+                logger.info(
+                    "Fetching {} OpenAlex IDs ({} cached works already present)",
+                    len(ids_to_fetch),
+                    cached_oa.height if cached_oa is not None else 0,
+                )
                 pos = get_next_position()
+                _fetch_t0 = time.monotonic()
                 try:
                     works = await openalex_client.get_works_by_ids(
                         ids_to_fetch, position=pos
@@ -213,21 +226,59 @@ class Pipeline:
                         exc,
                     )
                     works = []
-                rows = []
-                for w in works:
-                    try:
-                        rows.append(dataclasses.asdict(w))
-                    except (TypeError, AttributeError) as exc:
-                        logger.debug("Could not convert Work to dict: {}", exc)
-                        rows.append(
-                            {
-                                "id": getattr(w, "id", None),
-                                "doi": getattr(w, "doi", None),
-                                "display_name": getattr(w, "display_name", None),
-                                "publication_year": getattr(w, "publication_year", None),
-                            }
+                logger.info(
+                    "Retrieved {} works from OpenAlex in {:.1f}s",
+                    len(works),
+                    time.monotonic() - _fetch_t0,
+                )
+
+                # Load fetched data from chunks written by the client,
+                # avoiding redundant Work-to-dict conversion.
+                from syntheca.utils.persistence import load_parquet_all as _load_chunks
+
+                fetched_df = _load_chunks("openalex_works") or pl.DataFrame()
+
+                # Filter: only keep rows from chunks that correspond to the
+                # IDs we just fetched (exclude previously cached rows that
+                # load_parquet_all also returns).
+                if fetched_df.height and cached_oa is not None and cached_oa.height:
+                    cached_dois_set = set(
+                        cached_oa.select(
+                            pl.col("doi").str.to_lowercase().str.strip_chars()
                         )
-                fetched_df = robust_from_dicts(rows) if rows else pl.DataFrame()
+                        .to_series()
+                        .to_list()
+                    )
+                    fetched_df = fetched_df.filter(
+                        ~pl.col("doi").str.to_lowercase().str.strip_chars().is_in(cached_dois_set)
+                    )
+
+                if not fetched_df.height:
+                    # Fallback: convert from in-memory Work objects if
+                    # chunk loading failed or returned nothing new.
+                    logger.info(
+                        "Chunk load returned no new rows; falling back to in-memory conversion for {} works",
+                        len(works),
+                    )
+                    rows = []
+                    for w in works:
+                        try:
+                            rows.append(dataclasses.asdict(w))
+                        except (TypeError, AttributeError) as exc:
+                            logger.debug("Could not convert Work to dict: {}", exc)
+                            rows.append(
+                                {
+                                    "id": getattr(w, "id", None),
+                                    "doi": getattr(w, "doi", None),
+                                    "display_name": getattr(w, "display_name", None),
+                                    "publication_year": getattr(w, "publication_year", None),
+                                }
+                            )
+                    fetched_df = robust_from_dicts(rows) if rows else pl.DataFrame()
+
+                logger.info(
+                    "Loaded {} rows from fetched OpenAlex data", fetched_df.height
+                )
             else:
                 fetched_df = pl.DataFrame()
 
@@ -238,24 +289,42 @@ class Pipeline:
                 openalex_works_df = fetched_df
             else:
                 openalex_works_df = cached_oa if cached_oa is not None else pl.DataFrame()
+            logger.info(
+                "Merged OpenAlex data: {} total rows (cached={}, fetched={})",
+                openalex_works_df.height if openalex_works_df is not None else 0,
+                cached_oa.height if cached_oa is not None else 0,
+                fetched_df.height,
+            )
 
-            # Persist the merged result so the cache grows each run
+            # Persist the merged result so the cache grows each run.
+            # The chunks ARE the cache now; load_parquet_all handles loading
+            # from them.  No need to consolidate into a single file or clean
+            # up chunks.
             if settings.persist_intermediate and openalex_works_df.height:
-                save_dataframe_parquet(openalex_works_df, "openalex_works")
-                from syntheca.utils.persistence import cleanup_chunks
-
-                cleanup_chunks("openalex_works")
+                logger.info(
+                    "OpenAlex cache maintained via chunks ({} rows), skipping consolidated write",
+                    openalex_works_df.height,
+                )
 
         oa_clean = (
             cleaning.clean_publications(openalex_works_df)
             if openalex_works_df is not None
             else pl.DataFrame()
         )
+        logger.info(
+            "Cleaned OpenAlex data: {} rows", oa_clean.height if oa_clean is not None else 0
+        )
         if settings.persist_intermediate and oa_clean is not None and oa_clean.height:
             try:
                 from syntheca.utils.persistence import save_dataframe_parquet
 
+                logger.info("Saving {} rows to openalex_works_clean", oa_clean.height)
+                _oa_clean_t0 = time.monotonic()
                 save_dataframe_parquet(oa_clean, "openalex_works_clean")
+                logger.info(
+                    "Saved openalex_works_clean in {:.1f}s",
+                    time.monotonic() - _oa_clean_t0,
+                )
             except Exception as exc:
                 logger.warning(
                     "Failed to persist openalex_works_clean ({} rows): {}",
@@ -272,13 +341,24 @@ class Pipeline:
         openalex_canonical_works = _canonicalize_openalex_rows(oa_clean)
         canonical_works = [*pure_canonical_works, *openalex_canonical_works]
         if canonical_works:
-            logger.info("Canonical normalization produced {} work records", len(canonical_works))
+            logger.info(
+                "Canonical normalization produced {} work records ({} from Pure, {} from OpenAlex)",
+                len(canonical_works),
+                len(pure_canonical_works),
+                len(openalex_canonical_works),
+            )
             if settings.persist_intermediate:
                 try:
                     from syntheca.utils.persistence import save_dataframe_parquet
 
                     canonical_df = canonicals_to_polars(canonical_works)
+                    logger.info("Saving {} rows to canonical_works", canonical_df.height)
+                    _canonical_t0 = time.monotonic()
                     save_dataframe_parquet(canonical_df, "canonical_works")
+                    logger.info(
+                        "Saved canonical_works in {:.1f}s",
+                        time.monotonic() - _canonical_t0,
+                    )
                 except Exception as exc:
                     logger.warning("Failed to persist canonical_works: {}", exc)
 
@@ -507,7 +587,16 @@ class Pipeline:
                 try:
                     from syntheca.utils.persistence import save_dataframe_parquet
 
+                    logger.info(
+                        "Saving {} rows to authors_enriched",
+                        _authors_enriched.height if _authors_enriched is not None else 0,
+                    )
+                    _auth_t0 = time.monotonic()
                     save_dataframe_parquet(_authors_enriched, "authors_enriched")
+                    logger.info(
+                        "Saved authors_enriched in {:.1f}s",
+                        time.monotonic() - _auth_t0,
+                    )
                 except Exception as exc:
                     logger.warning(
                         "Failed to persist authors_enriched ({} rows): {}",
@@ -569,15 +658,49 @@ class Pipeline:
                 openalex_works_clean=oa_clean,
                 authors_enriched=_authors_enriched,
             )
+            logger.info(
+                "Writing merged.parquet ({} rows)", merged_final.height
+            )
             parquet_path = outdir / "merged.parquet"
-            xlsx_path = outdir / "merged.xlsx"
+            _parquet_t0 = time.monotonic()
             export.write_parquet(merged_final, parquet_path)
+            logger.info(
+                "Saved merged.parquet in {:.1f}s",
+                time.monotonic() - _parquet_t0,
+            )
+            xlsx_path = outdir / "merged.xlsx"
+            logger.info(
+                "Writing merged.xlsx ({} rows)", merged_final.height
+            )
+            _xlsx_t0 = time.monotonic()
             export.write_formatted_excel(merged_final, xlsx_path)
+            logger.info(
+                "Saved merged.xlsx in {:.1f}s",
+                time.monotonic() - _xlsx_t0,
+            )
             if reconciled_transition is not None and reconciled_transition.height:
                 reconciled_parquet = outdir / "merged.reconciled.parquet"
                 reconciled_xlsx = outdir / "merged.reconciled.xlsx"
+                logger.info(
+                    "Writing merged.reconciled.parquet ({} rows)",
+                    reconciled_transition.height,
+                )
+                _rec_parquet_t0 = time.monotonic()
                 export.write_parquet(reconciled_transition, reconciled_parquet)
+                logger.info(
+                    "Saved merged.reconciled.parquet in {:.1f}s",
+                    time.monotonic() - _rec_parquet_t0,
+                )
+                logger.info(
+                    "Writing merged.reconciled.xlsx ({} rows)",
+                    reconciled_transition.height,
+                )
+                _rec_xlsx_t0 = time.monotonic()
                 export.write_formatted_excel(reconciled_transition, reconciled_xlsx)
+                logger.info(
+                    "Saved merged.reconciled.xlsx in {:.1f}s",
+                    time.monotonic() - _rec_xlsx_t0,
+                )
 
         return merged_final
 
@@ -857,11 +980,16 @@ def _write_parity_support_artifacts(
         "pure_publications_clean.parquet": pure_publications_clean,
         "pure_persons.parquet": pure_persons,
         "pure_orgunits.parquet": pure_org_units,
-        "openalex_works_clean.parquet": openalex_works_clean,
+        # openalex_works_clean is already persisted to the cache dir
+        # via save_dataframe_parquet earlier in the pipeline; skip the
+        # duplicate write here.
         "authors_enriched.parquet": authors_enriched,
     }
 
     for filename, df in artifacts.items():
         if df is None:
             continue
+        logger.info("Writing parity artifact {} ({} rows)", filename, df.height)
+        _artifact_t0 = time.monotonic()
         export.write_parquet(df, output_dir / filename)
+        logger.info("Saved {} in {:.1f}s", filename, time.monotonic() - _artifact_t0)

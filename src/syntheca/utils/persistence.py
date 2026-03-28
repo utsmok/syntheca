@@ -7,8 +7,11 @@ write and read DataFrames to/from the configured project cache directory.
 from __future__ import annotations
 
 import pathlib
+import time
 
 import polars as pl
+from polars.exceptions import SchemaError, ShapeError
+from loguru import logger
 
 from syntheca.config import settings
 
@@ -27,7 +30,11 @@ def save_dataframe_parquet(df: pl.DataFrame, name: str) -> pathlib.Path:
     cache_dir = pathlib.Path(settings.cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     p = cache_dir / f"{name}.parquet"
+    _t0 = time.monotonic()
     df.write_parquet(str(p))
+    logger.info(
+        "persistence: wrote {} rows to {} ({:.1f}s)", df.height, p.name, time.monotonic() - _t0
+    )
     return p
 
 
@@ -43,8 +50,14 @@ def load_dataframe_parquet(name: str) -> pl.DataFrame | None:
     """
     p = pathlib.Path(settings.cache_dir) / f"{name}.parquet"
     if not p.exists():
+        logger.info("persistence: file not found for {}", name)
         return None
-    return pl.read_parquet(str(p))
+    _t0 = time.monotonic()
+    result = pl.read_parquet(str(p))
+    logger.info(
+        "persistence: loaded {} ({} rows, {:.1f}s)", p.name, result.height, time.monotonic() - _t0
+    )
+    return result
 
 
 def init_incremental_parquet(name: str, df: pl.DataFrame) -> pathlib.Path:
@@ -77,10 +90,14 @@ def append_to_parquet(name: str, df: pl.DataFrame) -> pathlib.Path:
     cache_dir = pathlib.Path(settings.cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     p = cache_dir / f"{name}.parquet"
+    _t0 = time.monotonic()
     if p.exists():
         existing = pl.read_parquet(str(p))
         df = pl.concat([existing, df])
     df.write_parquet(str(p))
+    logger.info(
+        "persistence: appended {} rows to {} ({:.1f}s)", df.height, p.name, time.monotonic() - _t0
+    )
     return p
 
 
@@ -102,7 +119,15 @@ def save_parquet_chunk(name: str, chunk_index: int, df: pl.DataFrame) -> pathlib
     chunk_dir = pathlib.Path(settings.cache_dir) / "_chunks" / name
     chunk_dir.mkdir(parents=True, exist_ok=True)
     p = chunk_dir / f"{chunk_index:04d}.parquet"
+    _t0 = time.monotonic()
     df.write_parquet(str(p))
+    logger.info(
+        "persistence: wrote chunk {} for {} ({} rows, {:.1f}s)",
+        chunk_index,
+        name,
+        df.height,
+        time.monotonic() - _t0,
+    )
     return p
 
 
@@ -121,6 +146,7 @@ def load_parquet_all(name: str) -> pl.DataFrame | None:
         The loaded DataFrame, or ``None`` when no data is found.
     """
     # Prefer chunks (in-progress or crash-recovery data)
+    _t0 = time.monotonic()
     chunk_dir = pathlib.Path(settings.cache_dir) / "_chunks" / name
     if chunk_dir.exists():
         files = sorted(chunk_dir.glob("*.parquet"))
@@ -133,14 +159,26 @@ def load_parquet_all(name: str) -> pl.DataFrame | None:
                     pass  # skip corrupted / partially-written chunks
             if loaded:
                 try:
-                    return pl.concat(loaded)
-                except pl.ShapeError:
-                    # Fallback: struct schemas may still differ across
-                    # chunks from interrupted / pre-fix runs.
-                    return pl.concat(loaded, how="diagonal_relaxed")
+                    result = pl.concat(loaded)
+                except (ShapeError, SchemaError):
+                    # Fallback: struct schemas or column types may differ
+                    # across chunks from interrupted / pre-fix runs or when
+                    # sparse and dense items land in different chunks.
+                    result = pl.concat(loaded, how="diagonal_relaxed")
+                logger.info(
+                    "persistence: loaded {} chunks for {} ({} total rows, {:.1f}s)",
+                    len(files),
+                    name,
+                    result.height,
+                    time.monotonic() - _t0,
+                )
+                return result
 
     # Fall back to consolidated single file
-    return load_dataframe_parquet(name)
+    single = load_dataframe_parquet(name)
+    if single is None:
+        logger.info("persistence: no data found for {}", name)
+    return single
 
 
 def cleanup_chunks(name: str) -> None:
@@ -155,4 +193,6 @@ def cleanup_chunks(name: str) -> None:
 
     chunk_dir = pathlib.Path(settings.cache_dir) / "_chunks" / name
     if chunk_dir.exists():
+        files = list(chunk_dir.glob("*.parquet"))
         shutil.rmtree(chunk_dir)
+        logger.info("persistence: cleaned up {} chunk files for {}", len(files), name)

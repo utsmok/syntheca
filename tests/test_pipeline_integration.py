@@ -110,7 +110,10 @@ async def test_pipeline_integration_mock_end_to_end(tmp_path: pathlib.Path):
     assert (tmp_path / "pure_publications_clean.parquet").exists()
     assert (tmp_path / "pure_persons.parquet").exists()
     assert (tmp_path / "pure_orgunits.parquet").exists()
-    assert (tmp_path / "openalex_works_clean.parquet").exists()
+    # openalex_works_clean.parquet is no longer written as a parity
+    # artifact; it is only persisted to the cache dir when there is
+    # actual OpenAlex data.  In this test no openalex_ids are provided
+    # so oa_clean has 0 rows and no file is written.
     assert (tmp_path / "authors_enriched.parquet").exists()
     assert (tmp_path / "merged.reconciled.parquet").exists()
 
