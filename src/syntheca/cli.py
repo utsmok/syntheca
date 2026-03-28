@@ -137,6 +137,9 @@ async def _run_pipeline_command(args: argparse.Namespace) -> None:
             cast(list[dict[str, Any]], raw.get("openaire_cris_orgunits") or [])
         )
 
+        # Free raw dicts — DataFrames are the authoritative representation now
+        del results, raw
+
         logger.info(
             "Loaded: publications={}, persons={}, orgs={}",
             publications.height,

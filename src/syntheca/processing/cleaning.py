@@ -79,7 +79,7 @@ def clean_publications(df: pl.DataFrame) -> pl.DataFrame:
         pl.DataFrame: A cleaned DataFrame with normalized DOIs and parsed publication dates.
 
     """
-    out = df.clone()
+    out = df
     if "doi" in out.columns:
         out = normalize_doi_col_in_df(out, "doi")
 
