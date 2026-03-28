@@ -147,23 +147,6 @@ class Pipeline:
             if pure_publications_df is not None
             else pl.DataFrame()
         )
-        if settings.persist_intermediate and pubs_clean is not None and pubs_clean.height:
-            try:
-                from syntheca.utils.persistence import save_dataframe_parquet
-
-                logger.info("Saving {} rows to pure_publications_clean", pubs_clean.height)
-                _pubs_t0 = time.monotonic()
-                save_dataframe_parquet(pubs_clean, "pure_publications_clean")
-                logger.info(
-                    "Saved pure_publications_clean in {:.1f}s",
-                    time.monotonic() - _pubs_t0,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Failed to persist pure_publications_clean ({} rows): {}",
-                    pubs_clean.height,
-                    exc,
-                )
 
         # If openalex_works_df is missing and we have an OpenAlex client, fetch via IDs
         if openalex_works_df is None and openalex_client is not None and openalex_ids:
@@ -232,52 +215,29 @@ class Pipeline:
                     time.monotonic() - _fetch_t0,
                 )
 
-                # Load fetched data from chunks written by the client,
-                # avoiding redundant Work-to-dict conversion.
-                from syntheca.utils.persistence import load_parquet_all as _load_chunks
-
-                fetched_df = _load_chunks("openalex_works") or pl.DataFrame()
-
-                # Filter: only keep rows from chunks that correspond to the
-                # IDs we just fetched (exclude previously cached rows that
-                # load_parquet_all also returns).
-                if fetched_df.height and cached_oa is not None and cached_oa.height:
-                    cached_dois_set = set(
-                        cached_oa.select(
-                            pl.col("doi").str.to_lowercase().str.strip_chars()
+                # Convert fetched works directly from the in-memory list.
+                # The client already persisted chunks to disk for future
+                # incremental runs — no need to reload them here (that
+                # would load ALL previous chunks a second time).
+                rows = []
+                for w in works:
+                    try:
+                        rows.append(dataclasses.asdict(w))
+                    except (TypeError, AttributeError) as exc:
+                        logger.debug("Could not convert Work to dict: {}", exc)
+                        rows.append(
+                            {
+                                "id": getattr(w, "id", None),
+                                "doi": getattr(w, "doi", None),
+                                "display_name": getattr(w, "display_name", None),
+                                "publication_year": getattr(w, "publication_year", None),
+                            }
                         )
-                        .to_series()
-                        .to_list()
-                    )
-                    fetched_df = fetched_df.filter(
-                        ~pl.col("doi").str.to_lowercase().str.strip_chars().is_in(cached_dois_set)
-                    )
-
-                if not fetched_df.height:
-                    # Fallback: convert from in-memory Work objects if
-                    # chunk loading failed or returned nothing new.
-                    logger.info(
-                        "Chunk load returned no new rows; falling back to in-memory conversion for {} works",
-                        len(works),
-                    )
-                    rows = []
-                    for w in works:
-                        try:
-                            rows.append(dataclasses.asdict(w))
-                        except (TypeError, AttributeError) as exc:
-                            logger.debug("Could not convert Work to dict: {}", exc)
-                            rows.append(
-                                {
-                                    "id": getattr(w, "id", None),
-                                    "doi": getattr(w, "doi", None),
-                                    "display_name": getattr(w, "display_name", None),
-                                    "publication_year": getattr(w, "publication_year", None),
-                                }
-                            )
-                    fetched_df = robust_from_dicts(rows) if rows else pl.DataFrame()
-
+                fetched_df = robust_from_dicts(rows) if rows else pl.DataFrame()
                 logger.info(
-                    "Loaded {} rows from fetched OpenAlex data", fetched_df.height
+                    "Converted {} fetched works to DataFrame ({} rows)",
+                    len(works),
+                    fetched_df.height,
                 )
             else:
                 fetched_df = pl.DataFrame()
@@ -314,23 +274,6 @@ class Pipeline:
         logger.info(
             "Cleaned OpenAlex data: {} rows", oa_clean.height if oa_clean is not None else 0
         )
-        if settings.persist_intermediate and oa_clean is not None and oa_clean.height:
-            try:
-                from syntheca.utils.persistence import save_dataframe_parquet
-
-                logger.info("Saving {} rows to openalex_works_clean", oa_clean.height)
-                _oa_clean_t0 = time.monotonic()
-                save_dataframe_parquet(oa_clean, "openalex_works_clean")
-                logger.info(
-                    "Saved openalex_works_clean in {:.1f}s",
-                    time.monotonic() - _oa_clean_t0,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Failed to persist openalex_works_clean ({} rows): {}",
-                    oa_clean.height,
-                    exc,
-                )
 
         # -----------------------------------------------------------------
         # Canonical normalization step
@@ -347,20 +290,6 @@ class Pipeline:
                 len(pure_canonical_works),
                 len(openalex_canonical_works),
             )
-            if settings.persist_intermediate:
-                try:
-                    from syntheca.utils.persistence import save_dataframe_parquet
-
-                    canonical_df = canonicals_to_polars(canonical_works)
-                    logger.info("Saving {} rows to canonical_works", canonical_df.height)
-                    _canonical_t0 = time.monotonic()
-                    save_dataframe_parquet(canonical_df, "canonical_works")
-                    logger.info(
-                        "Saved canonical_works in {:.1f}s",
-                        time.monotonic() - _canonical_t0,
-                    )
-                except Exception as exc:
-                    logger.warning("Failed to persist canonical_works: {}", exc)
 
         # Enrich authors
         # Build or append people_search_names by extracting names from `authors_df` when available.
@@ -583,26 +512,8 @@ class Pipeline:
             )
             if processed_orgs.height:
                 _authors_enriched = map_author_affiliations(_authors_enriched, processed_orgs)
-            if settings.persist_intermediate:
-                try:
-                    from syntheca.utils.persistence import save_dataframe_parquet
-
-                    logger.info(
-                        "Saving {} rows to authors_enriched",
-                        _authors_enriched.height if _authors_enriched is not None else 0,
-                    )
-                    _auth_t0 = time.monotonic()
-                    save_dataframe_parquet(_authors_enriched, "authors_enriched")
-                    logger.info(
-                        "Saved authors_enriched in {:.1f}s",
-                        time.monotonic() - _auth_t0,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        "Failed to persist authors_enriched ({} rows): {}",
-                        _authors_enriched.height,
-                        exc,
-                    )
+            # authors_enriched is persisted to the output dir by
+            # _write_parity_support_artifacts — no separate cache write needed.
 
         # Optionally join author-level aggregated data to publications
         try:

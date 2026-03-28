@@ -16,7 +16,6 @@ from tqdm import tqdm
 
 from syntheca.clients.base import BaseClient
 from syntheca.config import settings
-from syntheca.utils.persistence import save_dataframe_parquet
 from syntheca.utils.polars_frames import robust_from_dicts
 from syntheca.utils.progress import get_next_position
 
@@ -557,24 +556,5 @@ class PureOAIClient(BaseClient):
         for collection in collections:
             # Do not pass enumerated positions — allocate unique positions globally using get_next_position
             results.update(await get_collection_data(collection, position=None))
-
-        # persist intermediate results if configured
-        if settings.persist_intermediate:
-            # Save each collection as parquet for quick inspection
-            for col, recs in results.items():
-                if recs:
-                    try:
-                        df = (
-                            pure_publications_to_frame(recs)
-                            if col == "openaire_cris_publications"
-                            else robust_from_dicts(recs)
-                        )
-                        save_dataframe_parquet(df, f"pure_{col}")
-                    except (OSError, pl.exceptions.ComputeError, pl.exceptions.SchemaError) as exc:
-                        logger.warning(
-                            "Failed to persist intermediate parquet for pure_{}: {}",
-                            col,
-                            exc,
-                        )
 
         return results
